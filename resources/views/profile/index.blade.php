@@ -2,13 +2,13 @@
 
 @section('content')
 
-<div class="row">
+<div class="row humana-mobile-shell">
     <div class="col-12 mb-4">
-        <div class="card mx-4 overflow-hidden">
+        <div class="card mx-4 overflow-hidden humana-mobile-card">
             <div class="card-body p-0">
-                <div class="bg-gradient-dark p-4 position-relative">
+                <div class="bg-gradient-dark p-4 position-relative humana-profile-hero">
                     <div class="row align-items-center">
-                        <div class="col-lg-8 d-flex align-items-center gap-3 flex-wrap">
+                        <div class="col-lg-8 d-flex align-items-center gap-3 flex-wrap humana-profile-identity">
                             @if ($avatarUrl)
                                 <img src="{{ $avatarUrl }}" alt="{{ $user->name }} avatar" class="avatar avatar-xxl border-radius-xl shadow-sm object-fit-cover">
                             @else
@@ -24,7 +24,9 @@
                             </div>
                         </div>
                         <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                            <a href="{{ route('user-profile.edit') }}" class="btn bg-gradient-light btn-sm mb-0">Edit Profile</a>
+                            <a href="{{ route('user-profile.edit') }}" class="btn bg-gradient-light btn-sm mb-0 humana-profile-action">
+                                <i class="fas fa-user-edit me-1"></i> Edit Profile
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -33,33 +35,33 @@
     </div>
 </div>
 
-<div class="row">
+<div class="row humana-mobile-shell">
     <div class="col-lg-5 mb-4">
-        <div class="card mx-4 h-100">
+        <div class="card mx-4 h-100 humana-mobile-card">
             <div class="card-header pb-0">
                 <h6 class="mb-0">Account Information</h6>
             </div>
             <div class="card-body">
-                <div class="mb-3">
+                <div class="humana-profile-field mb-3">
                     <p class="text-xs text-uppercase text-secondary mb-1">Full Name</p>
                     <h6 class="mb-0">{{ $user->name }}</h6>
                 </div>
-                <div class="mb-3">
+                <div class="humana-profile-field mb-3">
                     <p class="text-xs text-uppercase text-secondary mb-1">Email</p>
                     <h6 class="mb-0">{{ $user->email }}</h6>
                 </div>
-                <div class="mb-3">
+                <div class="humana-profile-field mb-3">
                     <p class="text-xs text-uppercase text-secondary mb-1">Role</p>
                     <span class="badge {{ $roleBadgeClass }}">{{ $user->roleName() ?? ucfirst(str_replace('_', ' ', (string) $user->roleKey())) }}</span>
                 </div>
                 @if ($user->phone)
-                <div class="mb-3">
+                <div class="humana-profile-field mb-3">
                     <p class="text-xs text-uppercase text-secondary mb-1">Phone</p>
                     <h6 class="mb-0">{{ $user->phone }}</h6>
                 </div>
                 @endif
                 @if ($user->location)
-                <div class="mb-3">
+                <div class="humana-profile-field mb-3">
                     <p class="text-xs text-uppercase text-secondary mb-1">Location</p>
                     <h6 class="mb-0">{{ $user->location }}</h6>
                 </div>
@@ -74,8 +76,8 @@
         </div>
     </div>
     <div class="col-lg-7 mb-4">
-        <div class="card mx-4 h-100">
-            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+        <div class="card mx-4 h-100 humana-mobile-card">
+            <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="mb-0">Employee Information</h6>
                 @if ($employee)
                     <span class="badge bg-gradient-success">Linked</span>
@@ -85,7 +87,7 @@
             </div>
             <div class="card-body">
                 @if ($employee)
-                    <div class="row">
+                    <div class="row humana-profile-info-grid">
                         <div class="col-md-6 mb-3">
                             <p class="text-xs text-uppercase text-secondary mb-1">NIK</p>
                             <h6 class="mb-0">{{ $employee->employee_code }}</h6>
@@ -123,9 +125,9 @@
 </div>
 
 @if ($user->isEmployee() || $user->isManager())
-<div class="row">
+<div class="row humana-mobile-shell">
     <div class="col-12">
-        <div class="card mx-4 mb-4">
+        <div class="card mx-4 mb-4 humana-mobile-card">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h6 class="mb-0">Personal Attendance and Leave Summary</h6>
@@ -139,19 +141,19 @@
                 @if ($weeklyAttendanceSummary)
                     <div class="row">
                         <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="border border-success border-radius-md p-3 h-100">
+                            <div class="border border-success border-radius-md p-3 h-100 humana-profile-stat">
                                 <p class="text-xs text-uppercase text-secondary mb-1">Present</p>
                                 <h4 class="text-success mb-0">{{ $weeklyAttendanceSummary['present'] }}</h4>
                             </div>
                         </div>
                         <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="border border-secondary border-radius-md p-3 h-100">
+                            <div class="border border-secondary border-radius-md p-3 h-100 humana-profile-stat">
                                 <p class="text-xs text-uppercase text-secondary mb-1">Absent</p>
                                 <h4 class="text-dark mb-0">{{ $weeklyAttendanceSummary['absent'] }}</h4>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="border border-info border-radius-md p-3 h-100">
+                            <div class="border border-info border-radius-md p-3 h-100 humana-profile-stat">
                                 <p class="text-xs text-uppercase text-secondary mb-1">Leave This Week</p>
                                 <h4 class="text-info mb-0">{{ $weeklyAttendanceSummary['leave'] }}</h4>
                             </div>

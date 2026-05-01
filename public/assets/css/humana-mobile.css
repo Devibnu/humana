@@ -165,6 +165,55 @@
     width: 100%;
   }
 
+  .humana-profile-hero {
+    border-radius: 1rem;
+  }
+
+  .humana-profile-identity {
+    align-items: flex-start !important;
+  }
+
+  .humana-profile-identity .avatar {
+    width: 4.5rem !important;
+    height: 4.5rem !important;
+  }
+
+  .humana-profile-identity h3 {
+    font-size: 1.35rem;
+    line-height: 1.25;
+  }
+
+  .humana-profile-action {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+
+  .humana-profile-field {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.85rem;
+  }
+
+  .humana-profile-field:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .humana-profile-field h6,
+  .humana-profile-info-grid h6 {
+    overflow-wrap: anywhere;
+  }
+
+  .humana-profile-info-grid > [class*="col-"] {
+    border: 1px solid #e9ecef;
+    border-radius: 0.85rem;
+    padding: 0.85rem;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .humana-profile-stat {
+    border-radius: 0.9rem;
+  }
+
   .min-width-0 {
     min-width: 0;
   }
