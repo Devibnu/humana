@@ -43,7 +43,7 @@
 
   <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('assets/img/apple-icon.png') }}">
   <link rel="icon" type="image/png" href="{{ $tenantFavicon }}">
-  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+  <link rel="manifest" href="{{ asset('manifest.json') }}">
   <title>
     {{ $tenantBrandName }}
   </title>
