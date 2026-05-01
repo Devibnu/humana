@@ -128,8 +128,9 @@
       menuButton.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         setSidebar(!body.classList.contains('g-sidenav-pinned'));
-      });
+      }, true);
 
       if (closeButton) {
         closeButton.addEventListener('click', function (event) {
