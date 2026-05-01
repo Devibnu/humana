@@ -10,11 +10,60 @@
 @php($statusLabels = ['present' => 'Hadir', 'late' => 'Terlambat', 'leave' => 'Izin', 'sick' => 'Sakit', 'absent' => 'Alpha'])
 @php($statusClasses = ['present' => 'bg-gradient-success', 'late' => 'bg-gradient-warning', 'leave' => 'bg-gradient-warning text-dark', 'sick' => 'bg-info', 'absent' => 'bg-danger'])
 
-<div class="row">
+<div class="row humana-mobile-shell">
     <div class="col-12">
         <x-flash-messages />
 
-        <div class="card mb-4 mx-4 shadow-xs">
+        @if ($currentUser && $currentUser->isEmployee())
+            <div class="card humana-mobile-card humana-attendance-hero humana-mobile-only mb-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <p class="text-xs text-white-50 mb-1">{{ now()->translatedFormat('l, d M Y') }}</p>
+                            <h5 class="text-white mb-0">Absensi Hari Ini</h5>
+                        </div>
+                        <span class="badge bg-white text-dark">{{ $selfNextAction === 'check_out' ? 'Sudah Masuk' : ($selfNextAction === 'complete' ? 'Lengkap' : 'Siap Absen') }}</span>
+                    </div>
+
+                    <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form-mobile" data-testid="self-attendance-form-mobile">
+                        @csrf
+                        <input type="hidden" name="latitude" id="self-attendance-latitude-mobile">
+                        <input type="hidden" name="longitude" id="self-attendance-longitude-mobile">
+                        @if (! $selfWorkLocation)
+                            <button type="button" class="btn btn-light humana-mobile-action mb-3" disabled data-testid="btn-self-attendance-disabled-mobile">
+                                <i class="fas fa-map-marker-alt me-2"></i> Lokasi kerja belum diatur
+                            </button>
+                        @elseif ($selfNextAction === 'complete')
+                            <button type="button" class="btn btn-light humana-mobile-action mb-3" disabled data-testid="btn-self-attendance-complete-mobile">
+                                <i class="fas fa-check-circle me-2"></i> Absensi Hari Ini Lengkap
+                            </button>
+                        @else
+                            <button type="submit" class="btn bg-white text-dark humana-mobile-action mb-3" id="btn-self-attendance-mobile" data-testid="btn-self-attendance-mobile">
+                                <i class="fas fa-location-arrow me-2 text-primary"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
+                            </button>
+                        @endif
+                    </form>
+
+                    <div class="humana-mobile-meta">
+                        <div class="meta-item">
+                            <p class="text-xxs text-white-50 mb-1">Lokasi</p>
+                            <p class="text-sm text-white font-weight-bold mb-0">{{ $selfWorkLocation?->name ?? 'Belum diatur' }}</p>
+                            @if ($selfWorkLocation)
+                                <p class="text-xxs text-white-50 mb-0">Radius {{ $selfWorkLocation->radius }} meter</p>
+                            @endif
+                        </div>
+                        <div class="meta-item">
+                            <p class="text-xxs text-white-50 mb-1">Jam</p>
+                            <p class="text-sm text-white font-weight-bold mb-0">Masuk {{ $selfTodayAttendance?->check_in ?? '—' }}</p>
+                            <p class="text-xxs text-white-50 mb-0">Pulang {{ $selfTodayAttendance?->check_out ?? '—' }}</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-white-50 mb-0 mt-3" id="self-attendance-status-mobile" data-testid="self-attendance-status-mobile"></p>
+                </div>
+            </div>
+        @endif
+
+        <div class="card mb-4 mx-4 shadow-xs humana-mobile-card">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h5 class="mb-1">Daftar Kehadiran</h5>
@@ -43,7 +92,7 @@
                     </div>
                 @endif
                 @if ($currentUser && $currentUser->isEmployee())
-                    <div class="d-flex flex-column align-items-lg-end gap-2">
+                    <div class="d-flex flex-column align-items-lg-end gap-2 d-none d-md-flex">
                         <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form" class="d-flex flex-wrap gap-2 justify-content-end align-items-center" data-testid="self-attendance-form">
                             @csrf
                             <input type="hidden" name="latitude" id="self-attendance-latitude">
@@ -78,29 +127,29 @@
                 @endif
             </div>
             <div class="card-body px-0 pt-0 pb-2">
-                <div class="px-4 py-3 border-bottom">
+                <div class="px-4 py-3 border-bottom humana-mobile-filter">
                     <form action="{{ route('attendances.index') }}" method="GET" class="row g-3 align-items-end">
-                        <div class="col-md-4">
+                        <div class="col-6 col-md-4">
                             <label class="form-label">Tanggal Mulai</label>
                             <input type="date" name="start_date" class="form-control" value="{{ $startDate }}" data-testid="attendance-start-date-filter">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-6 col-md-4">
                             <label class="form-label">Tanggal Selesai</label>
                             <input type="date" name="end_date" class="form-control" value="{{ $endDate }}" data-testid="attendance-end-date-filter">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-4">
                             <div class="d-flex gap-2 flex-wrap">
-                                <button type="submit" class="btn bg-gradient-dark mb-0" data-testid="btn-apply-attendance-filter">
+                                <button type="submit" class="btn bg-gradient-dark mb-0 flex-fill flex-md-grow-0" data-testid="btn-apply-attendance-filter">
                                     <i class="fas fa-filter me-1"></i> Terapkan Filter
                                 </button>
-                                <a href="{{ route('attendances.index') }}" class="btn btn-light mb-0">Reset</a>
+                                <a href="{{ route('attendances.index') }}" class="btn btn-light mb-0 flex-fill flex-md-grow-0">Reset</a>
                             </div>
                         </div>
                     </form>
                 </div>
 
                 <div class="px-4 py-3 border-bottom">
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="d-flex flex-wrap gap-2 humana-summary-scroll">
                         <span class="badge bg-success" data-testid="attendances-summary-present">Hadir: {{ $summary['present'] }}</span>
                         <span class="badge bg-warning text-dark" data-testid="attendances-summary-leave">Izin: {{ $summary['leave'] }}</span>
                         <span class="badge bg-info" data-testid="attendances-summary-sick">Sakit: {{ $summary['sick'] }}</span>
@@ -114,7 +163,48 @@
                         <p class="text-secondary mb-0">Belum ada data kehadiran untuk periode ini</p>
                     </div>
                 @else
-                    <div class="table-responsive p-0">
+                    <div class="humana-mobile-list px-3 py-3">
+                        <div class="d-grid gap-3 humana-bottom-safe">
+                            @foreach ($attendances as $attendance)
+                                @php($attendanceLog = $attendance->attendanceLog)
+                                @php($workLocationName = $attendanceLog?->workLocation?->name ?? $attendance->employee?->workLocation?->name ?? '—')
+                                @php($coordinates = $attendanceLog ? number_format((float) $attendanceLog->latitude, 7, '.', '').', '.number_format((float) $attendanceLog->longitude, 7, '.', '') : '—')
+                                <div class="humana-attendance-item" data-testid="attendance-mobile-card-{{ $attendance->id }}">
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                        <div>
+                                            <p class="text-xs text-secondary mb-1">{{ \Illuminate\Support\Carbon::parse($attendance->date)->format('d M Y') }}</p>
+                                            <h6 class="text-sm mb-0">{{ $attendance->employee?->name ?? '—' }}</h6>
+                                        </div>
+                                        <span class="badge {{ $statusClasses[$attendance->status] ?? 'bg-secondary' }}">
+                                            {{ $statusLabels[$attendance->status] ?? ucfirst($attendance->status) }}
+                                        </span>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <p class="text-xxs text-secondary mb-1">Masuk</p>
+                                            <p class="text-sm font-weight-bold mb-0">{{ $attendance->check_in ?? '—' }}</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <p class="text-xxs text-secondary mb-1">Pulang</p>
+                                            <p class="text-sm font-weight-bold mb-0">{{ $attendance->check_out ?? '—' }}</p>
+                                        </div>
+                                        <div class="col-12">
+                                            <p class="text-xxs text-secondary mb-1">Lokasi</p>
+                                            <p class="text-sm mb-0">{{ $workLocationName }}</p>
+                                        </div>
+                                        @if ($attendanceLog)
+                                            <div class="col-12">
+                                                <p class="text-xxs text-secondary mb-1">Koordinat perangkat</p>
+                                                <p class="text-xs mb-0">{{ $coordinates }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="table-responsive p-0 humana-desktop-table">
                         <table class="table align-items-center mb-0" data-testid="attendances-table">
                             <thead>
                                 <tr>
@@ -223,64 +313,69 @@
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                var form = document.getElementById('self-attendance-form');
-                var button = document.getElementById('btn-self-attendance');
-                var latitudeInput = document.getElementById('self-attendance-latitude');
-                var longitudeInput = document.getElementById('self-attendance-longitude');
-                var statusElement = document.getElementById('self-attendance-status');
+                function bindSelfAttendance(formId, buttonId, latitudeId, longitudeId, statusId) {
+                    var form = document.getElementById(formId);
+                    var button = document.getElementById(buttonId);
+                    var latitudeInput = document.getElementById(latitudeId);
+                    var longitudeInput = document.getElementById(longitudeId);
+                    var statusElement = document.getElementById(statusId);
 
-                if (!form || !button || !latitudeInput || !longitudeInput) {
-                    return;
+                    if (!form || !button || !latitudeInput || !longitudeInput || !statusElement) {
+                        return;
+                    }
+
+                    form.addEventListener('submit', function (event) {
+                        event.preventDefault();
+
+                        if (!window.isSecureContext) {
+                            statusElement.textContent = 'Browser memblokir lokasi karena halaman belum HTTPS. Buka lewat HTTPS atau izinkan lokasi untuk situs ini.';
+                            return;
+                        }
+
+                        if (!navigator.geolocation) {
+                            statusElement.textContent = 'Browser tidak dapat membaca lokasi perangkat.';
+                            return;
+                        }
+
+                        button.disabled = true;
+                        statusElement.textContent = 'Sedang mengambil lokasi perangkat...';
+
+                        navigator.geolocation.getCurrentPosition(
+                            function (position) {
+                                latitudeInput.value = position.coords.latitude.toFixed(7);
+                                longitudeInput.value = position.coords.longitude.toFixed(7);
+                                statusElement.textContent = 'Lokasi terbaca, menyimpan absensi...';
+                                form.submit();
+                            },
+                            function (error) {
+                                button.disabled = false;
+                                if (error && error.code === error.PERMISSION_DENIED) {
+                                    statusElement.textContent = 'Akses lokasi ditolak. Izinkan Location untuk situs ini di pengaturan browser lalu coba lagi.';
+                                    return;
+                                }
+
+                                if (error && error.code === error.POSITION_UNAVAILABLE) {
+                                    statusElement.textContent = 'Lokasi perangkat belum tersedia. Pastikan Location Services aktif dan coba lagi.';
+                                    return;
+                                }
+
+                                if (error && error.code === error.TIMEOUT) {
+                                    statusElement.textContent = 'Pengambilan lokasi terlalu lama. Coba lagi di area dengan sinyal lokasi lebih baik.';
+                                    return;
+                                }
+
+                                statusElement.textContent = 'Tidak dapat mengambil lokasi perangkat. Periksa izin lokasi browser lalu coba lagi.';
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                            }
+                        );
+                    });
                 }
 
-                form.addEventListener('submit', function (event) {
-                    event.preventDefault();
-
-                    if (!window.isSecureContext) {
-                        statusElement.textContent = 'Browser memblokir lokasi karena halaman belum HTTPS. Buka lewat HTTPS atau izinkan lokasi untuk situs ini.';
-                        return;
-                    }
-
-                    if (!navigator.geolocation) {
-                        statusElement.textContent = 'Browser tidak dapat membaca lokasi perangkat.';
-                        return;
-                    }
-
-                    button.disabled = true;
-                    statusElement.textContent = 'Sedang mengambil lokasi perangkat...';
-
-                    navigator.geolocation.getCurrentPosition(
-                        function (position) {
-                            latitudeInput.value = position.coords.latitude.toFixed(7);
-                            longitudeInput.value = position.coords.longitude.toFixed(7);
-                            statusElement.textContent = 'Lokasi terbaca, menyimpan absensi...';
-                            form.submit();
-                        },
-                        function (error) {
-                            button.disabled = false;
-                            if (error && error.code === error.PERMISSION_DENIED) {
-                                statusElement.textContent = 'Akses lokasi ditolak. Izinkan Location untuk humana.test di pengaturan browser lalu coba lagi.';
-                                return;
-                            }
-
-                            if (error && error.code === error.POSITION_UNAVAILABLE) {
-                                statusElement.textContent = 'Lokasi perangkat belum tersedia. Pastikan Location Services aktif dan coba lagi.';
-                                return;
-                            }
-
-                            if (error && error.code === error.TIMEOUT) {
-                                statusElement.textContent = 'Pengambilan lokasi terlalu lama. Coba lagi di area dengan sinyal lokasi lebih baik.';
-                                return;
-                            }
-
-                            statusElement.textContent = 'Tidak dapat mengambil lokasi perangkat. Periksa izin lokasi browser lalu coba lagi.';
-                        },
-                        {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                        }
-                    );
-                });
+                bindSelfAttendance('self-attendance-form', 'btn-self-attendance', 'self-attendance-latitude', 'self-attendance-longitude', 'self-attendance-status');
+                bindSelfAttendance('self-attendance-form-mobile', 'btn-self-attendance-mobile', 'self-attendance-latitude-mobile', 'self-attendance-longitude-mobile', 'self-attendance-status-mobile');
             });
         </script>
     @endpush

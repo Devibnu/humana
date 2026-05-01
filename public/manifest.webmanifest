@@ -1,0 +1,29 @@
+{
+  "name": "Humana HRIS",
+  "short_name": "Humana",
+  "description": "Absensi dan operasional karyawan Humana.",
+  "start_url": "/attendances",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8f9fa",
+  "theme_color": "#cb0c9f",
+  "icons": [
+    {
+      "src": "/assets/img/humana-pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/img/apple-icon.png",
+      "sizes": "76x76",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/img/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

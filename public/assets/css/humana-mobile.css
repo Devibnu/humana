@@ -1,0 +1,119 @@
+@media (max-width: 767.98px) {
+  body.g-sidenav-show {
+    overflow-x: hidden;
+  }
+
+  .container-fluid.py-4 {
+    padding: 0.75rem !important;
+  }
+
+  .card.mx-4 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  #sidenav-main {
+    max-width: calc(100vw - 2rem);
+  }
+
+  .fixed-plugin {
+    display: none;
+  }
+
+  .navbar-main {
+    margin-left: 0.5rem !important;
+    margin-right: 0.5rem !important;
+  }
+
+  .humana-mobile-shell {
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+  }
+
+  .humana-mobile-card {
+    border-radius: 1rem;
+    box-shadow: 0 0.75rem 2rem rgba(20, 20, 43, 0.08);
+  }
+
+  .humana-attendance-hero {
+    color: #fff;
+    background: linear-gradient(135deg, #172b4d 0%, #cb0c9f 100%);
+    overflow: hidden;
+    position: relative;
+    border: 0;
+  }
+
+  .humana-attendance-hero::after {
+    content: "";
+    position: absolute;
+    width: 10rem;
+    height: 10rem;
+    right: -4rem;
+    top: -4rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .humana-attendance-hero > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .humana-mobile-action {
+    min-height: 3.25rem;
+    width: 100%;
+    border-radius: 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  .humana-mobile-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .humana-mobile-meta .meta-item {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.85rem;
+    padding: 0.7rem;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .humana-mobile-filter .form-label {
+    margin-bottom: 0.35rem;
+  }
+
+  .humana-summary-scroll {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .humana-desktop-table {
+    display: none;
+  }
+
+  .humana-mobile-list {
+    display: block;
+  }
+
+  .humana-attendance-item {
+    border: 1px solid #e9ecef;
+    border-radius: 0.95rem;
+    padding: 0.9rem;
+    background: #fff;
+  }
+
+  .humana-bottom-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .humana-mobile-list,
+  .humana-mobile-only {
+    display: none !important;
+  }
+}

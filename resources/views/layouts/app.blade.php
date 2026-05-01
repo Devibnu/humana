@@ -32,6 +32,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="theme-color" content="#cb0c9f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{{ $tenantBrandName }}">
 
   @if (env('IS_DEMO'))
       <x-demo-metas></x-demo-metas>
@@ -39,6 +43,7 @@
 
   <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('assets/img/apple-icon.png') }}">
   <link rel="icon" type="image/png" href="{{ $tenantFavicon }}">
+  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
   <title>
     {{ $tenantBrandName }}
   </title>
@@ -51,6 +56,7 @@
   <link rel="stylesheet" href="{{ asset('assets/css/fontawesome-all.min.css') }}" />
   <!-- CSS Files -->
   <link id="pagestyle" href="{{ asset('assets/css/soft-ui-dashboard.css') }}?v=1.0.3" rel="stylesheet" />
+  <link href="{{ asset('assets/css/humana-mobile.css') }}?v=1.0.0" rel="stylesheet" />
 </head>
 
 <body class="g-sidenav-show  bg-gray-100 {{ (\Request::is('rtl') ? 'rtl' : (Request::is('virtual-reality') ? 'virtual-reality' : '')) }} ">
@@ -97,6 +103,13 @@
         console.error('Error loading Soft UI script', e);
       }
     })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register("{{ asset('sw.js') }}").catch(function () {});
+      });
+    }
   </script>
   @stack('scripts')
 </body>
