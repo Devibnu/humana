@@ -117,6 +117,58 @@
     background: #fff;
   }
 
+  .humana-mobile-actions .btn,
+  .humana-form-actions .btn,
+  .humana-back-button {
+    min-height: 2.75rem;
+  }
+
+  .humana-mobile-actions .btn {
+    flex: 1 1 calc(33.333% - 0.5rem);
+  }
+
+  .humana-user-card .btn {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .humana-form-grid {
+    gap: 1rem !important;
+  }
+
+  .humana-form-section {
+    border-radius: 0.95rem;
+  }
+
+  .humana-form-section .card-header,
+  .humana-form-section .card-body {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .humana-form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(248, 249, 250, 0.94);
+    backdrop-filter: blur(12px);
+  }
+
+  .humana-form-actions .btn {
+    flex: 1 1 0;
+  }
+
+  .humana-back-button {
+    width: 100%;
+  }
+
+  .min-width-0 {
+    min-width: 0;
+  }
+
   .humana-bottom-safe {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
