@@ -224,7 +224,7 @@
         <div class="card border shadow-xs h-100">
             <div class="card-header pb-0">
                 <h6 class="mb-0">Lokasi Kerja</h6>
-                <p class="text-xs text-secondary mb-0">Lokasi kerja dan radius absensi karyawan.</p>
+                <p class="text-xs text-secondary mb-0">Lokasi untuk validasi GPS dan jadwal untuk aturan jam absensi.</p>
             </div>
             <div class="card-body">
                 <div class="mb-3">
@@ -242,11 +242,26 @@
                     </select>
                     @error('work_location_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex align-items-center gap-1">
+                        Jadwal Kerja
+                        <i class="fas fa-info-circle text-info text-xs" data-bs-toggle="tooltip" title="Jam masuk, jam pulang, dan toleransi telat diambil dari jadwal kerja."></i>
+                    </label>
+                    <select name="work_schedule_id" class="form-control @error('work_schedule_id') is-invalid @enderror">
+                        <option value="">Pilih jadwal kerja</option>
+                        @foreach ($workSchedules as $workSchedule)
+                            <option value="{{ $workSchedule->id }}" @selected((string) old('work_schedule_id', $employee->work_schedule_id ?? '') === (string) $workSchedule->id)>
+                                {{ $workSchedule->name }} ({{ substr($workSchedule->check_in_time, 0, 5) }} - {{ substr($workSchedule->check_out_time, 0, 5) }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('work_schedule_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
                 <div class="d-flex align-items-start gap-2 border border-secondary border-radius-md p-3 bg-gray-100">
                     <i class="fas fa-map-marker-alt text-info mt-1" data-bs-toggle="tooltip" title="Attendance validation can use the assigned work location radius."></i>
                     <div>
                         <p class="text-sm font-weight-bold mb-1">Info Validasi Absensi</p>
-                        <p class="text-sm text-secondary mb-0">Validasi check-in absensi menggunakan radius lokasi kerja yang dipilih. Pastikan lokasi sudah memiliki koordinat GPS dan radius yang tepat.</p>
+                        <p class="text-sm text-secondary mb-0">Validasi GPS memakai lokasi kerja. Perhitungan telat dan pulang cepat memakai jadwal kerja karyawan.</p>
                     </div>
                 </div>
             </div>

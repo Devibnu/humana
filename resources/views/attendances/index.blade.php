@@ -3,8 +3,9 @@
 @section('content')
 
 @php($currentUser = $currentUser ?? auth()->user())
-@php($selfAttendanceContext = $selfAttendanceContext ?? ['employee' => null, 'workLocation' => null, 'todayAttendance' => null, 'nextAction' => null])
+@php($selfAttendanceContext = $selfAttendanceContext ?? ['employee' => null, 'workLocation' => null, 'workSchedule' => null, 'todayAttendance' => null, 'nextAction' => null])
 @php($selfWorkLocation = $selfAttendanceContext['workLocation'] ?? null)
+@php($selfWorkSchedule = $selfAttendanceContext['workSchedule'] ?? null)
 @php($selfTodayAttendance = $selfAttendanceContext['todayAttendance'] ?? null)
 @php($selfNextAction = $selfAttendanceContext['nextAction'] ?? null)
 @php($statusLabels = ['present' => 'Hadir', 'late' => 'Terlambat', 'leave' => 'Izin', 'sick' => 'Sakit', 'absent' => 'Alpha'])
@@ -53,7 +54,16 @@
                             @endif
                         </div>
                         <div class="meta-item">
-                            <p class="text-xxs text-white-50 mb-1">Jam</p>
+                            <p class="text-xxs text-white-50 mb-1">Jadwal</p>
+                            <p class="text-sm text-white font-weight-bold mb-0">{{ $selfWorkSchedule?->name ?? 'Belum diatur' }}</p>
+                            @if ($selfWorkSchedule)
+                                <p class="text-xxs text-white-50 mb-0">{{ substr($selfWorkSchedule->check_in_time, 0, 5) }} - {{ substr($selfWorkSchedule->check_out_time, 0, 5) }}</p>
+                            @else
+                                <p class="text-xxs text-white-50 mb-0">Telat belum dihitung</p>
+                            @endif
+                        </div>
+                        <div class="meta-item">
+                            <p class="text-xxs text-white-50 mb-1">Absensi</p>
                             <p class="text-sm text-white font-weight-bold mb-0">Masuk {{ $selfTodayAttendance?->check_in ?? '—' }}</p>
                             <p class="text-xxs text-white-50 mb-0">Pulang {{ $selfTodayAttendance?->check_out ?? '—' }}</p>
                         </div>
@@ -120,6 +130,9 @@
                                 @if ($selfTodayAttendance?->check_out)
                                     | Pulang {{ $selfTodayAttendance->check_out }}
                                 @endif
+                                @if ($selfWorkSchedule)
+                                    | Jadwal {{ $selfWorkSchedule->name }} {{ substr($selfWorkSchedule->check_in_time, 0, 5) }}-{{ substr($selfWorkSchedule->check_out_time, 0, 5) }}
+                                @endif
                             </p>
                         @endif
                         <p class="text-xs text-secondary mb-0 text-lg-end" id="self-attendance-status" data-testid="self-attendance-status"></p>
@@ -168,6 +181,7 @@
                             @foreach ($attendances as $attendance)
                                 @php($attendanceLog = $attendance->attendanceLog)
                                 @php($workLocationName = $attendanceLog?->workLocation?->name ?? $attendance->employee?->workLocation?->name ?? '—')
+                                @php($workSchedule = $attendance->workSchedule ?? $attendance->employee?->workSchedule)
                                 @php($coordinates = $attendanceLog ? number_format((float) $attendanceLog->latitude, 7, '.', '').', '.number_format((float) $attendanceLog->longitude, 7, '.', '') : '—')
                                 <div class="humana-attendance-item" data-testid="attendance-mobile-card-{{ $attendance->id }}">
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
@@ -192,6 +206,20 @@
                                             <p class="text-xxs text-secondary mb-1">Lokasi</p>
                                             <p class="text-sm mb-0">{{ $workLocationName }}</p>
                                         </div>
+                                        <div class="col-12">
+                                            <p class="text-xxs text-secondary mb-1">Jadwal</p>
+                                            <p class="text-sm mb-0">{{ $workSchedule?->name ?? '—' }} @if($attendance->scheduled_check_in && $attendance->scheduled_check_out) ({{ substr($attendance->scheduled_check_in, 0, 5) }} - {{ substr($attendance->scheduled_check_out, 0, 5) }}) @endif</p>
+                                        </div>
+                                        @if ($attendance->late_minutes || $attendance->early_leave_minutes)
+                                            <div class="col-12">
+                                                @if ($attendance->late_minutes)
+                                                    <span class="badge bg-gradient-warning text-dark">Telat {{ $attendance->late_minutes }} menit</span>
+                                                @endif
+                                                @if ($attendance->early_leave_minutes)
+                                                    <span class="badge bg-gradient-danger">Pulang cepat {{ $attendance->early_leave_minutes }} menit</span>
+                                                @endif
+                                            </div>
+                                        @endif
                                         @if ($attendanceLog)
                                             <div class="col-12">
                                                 <p class="text-xxs text-secondary mb-1">Koordinat perangkat</p>
@@ -224,6 +252,7 @@
                                 @foreach ($attendances as $attendance)
                                     @php($attendanceLog = $attendance->attendanceLog)
                                     @php($workLocationName = $attendanceLog?->workLocation?->name ?? $attendance->employee?->workLocation?->name ?? '—')
+                                    @php($workSchedule = $attendance->workSchedule ?? $attendance->employee?->workSchedule)
                                     @php($coordinates = $attendanceLog ? number_format((float) $attendanceLog->latitude, 7, '.', '').', '.number_format((float) $attendanceLog->longitude, 7, '.', '') : '—')
                                     <tr>
                                         <td class="ps-4">
@@ -235,14 +264,25 @@
                                         </td>
                                         <td>
                                             <span class="text-sm font-weight-bold">{{ $workLocationName }}</span>
+                                            <p class="text-xs text-secondary mb-0">{{ $workSchedule?->name ?? 'Jadwal belum diatur' }}</p>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge {{ $statusClasses[$attendance->status] ?? 'bg-secondary' }}" data-testid="attendance-status-{{ $attendance->id }}">
                                                 {{ $statusLabels[$attendance->status] ?? ucfirst($attendance->status) }}
                                             </span>
                                         </td>
-                                        <td class="text-center"><span class="text-secondary text-sm font-weight-bold">{{ $attendance->check_in ?? '—' }}</span></td>
-                                        <td class="text-center"><span class="text-secondary text-sm font-weight-bold">{{ $attendance->check_out ?? '—' }}</span></td>
+                                        <td class="text-center">
+                                            <span class="text-secondary text-sm font-weight-bold">{{ $attendance->check_in ?? '—' }}</span>
+                                            @if ($attendance->late_minutes)
+                                                <p class="text-xs text-warning mb-0">Telat {{ $attendance->late_minutes }}m</p>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="text-secondary text-sm font-weight-bold">{{ $attendance->check_out ?? '—' }}</span>
+                                            @if ($attendance->early_leave_minutes)
+                                                <p class="text-xs text-danger mb-0">Pulang cepat {{ $attendance->early_leave_minutes }}m</p>
+                                            @endif
+                                        </td>
                                         <td class="text-center"><span class="text-secondary text-xs font-weight-bold">{{ $coordinates }}</span></td>
                                         @if ($currentUser && ($currentUser->isAdminHr() || $currentUser->isManager()))
                                             <td class="text-center">

@@ -26,6 +26,7 @@ class Employee extends Model
         'position_id',
         'department_id',
         'work_location_id',
+        'work_schedule_id',
         'start_date',
         'avatar_path',
         'status',
@@ -65,6 +66,11 @@ class Employee extends Model
     public function workLocation()
     {
         return $this->belongsTo(WorkLocation::class);
+    }
+
+    public function workSchedule()
+    {
+        return $this->belongsTo(WorkSchedule::class);
     }
 
     public function attendances()

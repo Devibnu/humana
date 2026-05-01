@@ -62,7 +62,7 @@
         </a>
       </li>
 
-      @if ($currentUser && count(array_intersect(['users', 'employees', 'employee_levels', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'leaves.manage', 'payroll'], $currentUser->accessibleMenuKeys())) > 0)
+      @if ($currentUser && count(array_intersect(['users', 'employees', 'employee_levels', 'work_schedules', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'leaves.manage', 'payroll'], $currentUser->accessibleMenuKeys())) > 0)
       <li class="nav-item mt-2">
         <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">Data Master</h6>
       </li>
@@ -106,6 +106,21 @@
             <i class="fas fa-layer-group text-sm {{ (Request::is('employee-levels') || Request::is('employee-levels/*')) ? 'text-white' : 'text-dark' }}" aria-hidden="true"></i>
           </div>
           <span class="nav-link-text ms-1">Level Karyawan</span>
+        </a>
+      </li>
+      @endif
+
+      @if ($currentUser->hasMenuAccess('work_schedules'))
+      <li class="nav-item pb-2">
+        <a class="nav-link {{ (Request::is('work-schedules') || Request::is('work-schedules/*')) ? 'active' : '' }}"
+          href="{{ route('work-schedules.index') }}"
+          title="Kelola master jadwal kerja"
+          data-testid="sidebar-menu-work-schedules"
+          data-bs-toggle="tooltip">
+          <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+            <i class="fas fa-clock text-sm {{ (Request::is('work-schedules') || Request::is('work-schedules/*')) ? 'text-white' : 'text-dark' }}" aria-hidden="true"></i>
+          </div>
+          <span class="nav-link-text ms-1">Jadwal Kerja</span>
         </a>
       </li>
       @endif

@@ -86,18 +86,19 @@ class AttendanceController extends Controller
                 Rule::unique('attendances', 'date')->where(fn ($query) => $query->where('employee_id', $request->employee_id)),
             ],
             'check_in' => ['nullable', 'date_format:H:i'],
-            'check_out' => ['nullable', 'date_format:H:i', 'after_or_equal:check_in'],
+            'check_out' => ['nullable', 'date_format:H:i'],
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $data['tenant_id'] = $tenantId;
-        $employee = Employee::with('workLocation')->findOrFail($data['employee_id']);
+        $employee = Employee::with(['workLocation', 'workSchedule'])->findOrFail($data['employee_id']);
         $workLocation = WorkLocation::query()->findOrFail($data['work_location_id']);
         $locationLog = $this->resolveAttendanceLocationLog($employee, $workLocation, $data);
 
         unset($data['latitude'], $data['longitude'], $data['work_location_id']);
+        $data = $this->applyWorkScheduleCalculation($data, $employee);
 
         $attendance = Attendance::create($data);
         $this->syncAttendanceLog($attendance, $locationLog);
@@ -121,7 +122,7 @@ class AttendanceController extends Controller
             ]);
         }
 
-        $employee->loadMissing('workLocation');
+        $employee->loadMissing(['workLocation', 'workSchedule']);
 
         if (! $employee->workLocation) {
             throw ValidationException::withMessages([
@@ -138,10 +139,20 @@ class AttendanceController extends Controller
         $currentTime = now()->format('H:i');
         $attendance = Attendance::query()
             ->where('employee_id', $employee->id)
-            ->whereDate('date', $today)
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->latest('date')
+            ->latest('id')
             ->first();
 
-        if ($attendance && $attendance->check_in && $attendance->check_out) {
+        $todayCompleteAttendance = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', $today)
+            ->whereNotNull('check_in')
+            ->whereNotNull('check_out')
+            ->first();
+
+        if (! $attendance && $todayCompleteAttendance) {
             return redirect()
                 ->route('attendances.index')
                 ->with('success', 'Absensi hari ini sudah lengkap.');
@@ -150,20 +161,20 @@ class AttendanceController extends Controller
         $locationLog = $this->resolveAttendanceLocationLog($employee, $employee->workLocation, $data);
 
         if (! $attendance) {
-            $attendance = Attendance::create([
+            $attendance = Attendance::create($this->applyWorkScheduleCalculation([
                 'tenant_id' => $employee->tenant_id,
                 'employee_id' => $employee->id,
                 'date' => $today,
                 'check_in' => $currentTime,
                 'check_out' => null,
                 'status' => 'present',
-            ]);
+            ], $employee));
 
             $message = 'Absen masuk berhasil disimpan.';
         } else {
-            $attendance->update([
+            $attendance->update($this->applyWorkScheduleCalculation([
                 'check_out' => $currentTime,
-            ]);
+            ], $employee, $attendance));
 
             $message = 'Absen pulang berhasil disimpan.';
         }
@@ -204,18 +215,19 @@ class AttendanceController extends Controller
                     ->ignore($attendance->id),
             ],
             'check_in' => ['nullable', 'date_format:H:i'],
-            'check_out' => ['nullable', 'date_format:H:i', 'after_or_equal:check_in'],
+            'check_out' => ['nullable', 'date_format:H:i'],
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $data['tenant_id'] = $tenantId;
-        $employee = Employee::with('workLocation')->findOrFail($data['employee_id']);
+        $employee = Employee::with(['workLocation', 'workSchedule'])->findOrFail($data['employee_id']);
         $workLocation = WorkLocation::query()->findOrFail($data['work_location_id']);
         $locationLog = $this->resolveAttendanceLocationLog($employee, $workLocation, $data);
 
         unset($data['latitude'], $data['longitude'], $data['work_location_id']);
+        $data = $this->applyWorkScheduleCalculation($data, $employee, $attendance);
 
         $attendance->update($data);
         $this->syncAttendanceLog($attendance, $locationLog);
@@ -246,7 +258,7 @@ class AttendanceController extends Controller
     protected function buildIndexQuery($currentUser, ?int $tenantId = null): Builder
     {
         return Attendance::query()
-            ->with(['tenant', 'employee.workLocation', 'attendanceLog.workLocation'])
+            ->with(['tenant', 'employee.workLocation', 'employee.workSchedule', 'workSchedule', 'attendanceLog.workLocation'])
             ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
             ->when($currentUser->isEmployee(), function ($query) use ($currentUser) {
                 $query->whereHas('employee', function ($employeeQuery) use ($currentUser) {
@@ -279,9 +291,17 @@ class AttendanceController extends Controller
             ];
         }
 
-        $employee->loadMissing('workLocation');
+        $employee->loadMissing(['workLocation', 'workSchedule']);
 
-        $todayAttendance = Attendance::query()
+        $openAttendance = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->latest('date')
+            ->latest('id')
+            ->first();
+
+        $todayAttendance = $openAttendance ?: Attendance::query()
             ->where('employee_id', $employee->id)
             ->whereDate('date', now()->toDateString())
             ->first();
@@ -293,6 +313,7 @@ class AttendanceController extends Controller
         return [
             'employee' => $employee,
             'workLocation' => $employee->workLocation,
+            'workSchedule' => $employee->workSchedule,
             'todayAttendance' => $todayAttendance,
             'nextAction' => $nextAction,
         ];
@@ -306,6 +327,7 @@ class AttendanceController extends Controller
 
         return Employee::query()
             ->with('workLocation')
+            ->with('workSchedule')
             ->where('user_id', $currentUser->id)
             ->when($currentUser->employee_id, fn ($query) => $query->orWhere('id', $currentUser->employee_id))
             ->first();
@@ -360,6 +382,7 @@ class AttendanceController extends Controller
     {
         return Employee::query()
             ->with('workLocation')
+            ->with('workSchedule')
             ->when($currentUser?->isEmployee(), fn ($query) => $query->where('user_id', $currentUser->id))
             ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
             ->orderBy('name')
@@ -409,6 +432,73 @@ class AttendanceController extends Controller
             'longitude' => round((float) $data['longitude'], 7),
             'distance_meters' => round($distanceMeters, 2),
         ];
+    }
+
+    protected function applyWorkScheduleCalculation(array $data, Employee $employee, ?Attendance $attendance = null): array
+    {
+        $employee->loadMissing('workSchedule');
+        $schedule = $employee->workSchedule;
+
+        $data['work_schedule_id'] = $schedule?->id;
+        $data['scheduled_check_in'] = $schedule?->check_in_time ? substr($schedule->check_in_time, 0, 5) : null;
+        $data['scheduled_check_out'] = $schedule?->check_out_time ? substr($schedule->check_out_time, 0, 5) : null;
+        $data['late_minutes'] = 0;
+        $data['early_leave_minutes'] = 0;
+
+        if (! $schedule) {
+            return $data;
+        }
+
+        $date = $data['date'] ?? $attendance?->date?->format('Y-m-d') ?? now()->toDateString();
+        $checkIn = $data['check_in'] ?? $attendance?->check_in;
+        $checkOut = $data['check_out'] ?? $attendance?->check_out;
+
+        if ($checkIn) {
+            $data['late_minutes'] = $this->calculateLateMinutes($date, $checkIn, $schedule);
+        }
+
+        if ($checkOut) {
+            $data['early_leave_minutes'] = $this->calculateEarlyLeaveMinutes($date, $checkIn, $checkOut, $schedule);
+        }
+
+        if (in_array(($data['status'] ?? $attendance?->status), ['present', 'late'], true)) {
+            $data['status'] = $data['late_minutes'] > 0 ? 'late' : 'present';
+        }
+
+        return $data;
+    }
+
+    protected function calculateLateMinutes(string $date, string $checkIn, $schedule): int
+    {
+        $actualCheckIn = Carbon::parse($date.' '.$checkIn);
+        $allowedCheckIn = Carbon::parse($date.' '.substr($schedule->check_in_time, 0, 5))
+            ->addMinutes((int) $schedule->late_tolerance_minutes);
+
+        return $actualCheckIn->greaterThan($allowedCheckIn)
+            ? $allowedCheckIn->diffInMinutes($actualCheckIn)
+            : 0;
+    }
+
+    protected function calculateEarlyLeaveMinutes(string $date, ?string $checkIn, string $checkOut, $schedule): int
+    {
+        $scheduledCheckIn = Carbon::parse($date.' '.substr($schedule->check_in_time, 0, 5));
+        $scheduledCheckOut = Carbon::parse($date.' '.substr($schedule->check_out_time, 0, 5));
+
+        if ($scheduledCheckOut->lessThanOrEqualTo($scheduledCheckIn)) {
+            $scheduledCheckOut->addDay();
+        }
+
+        $actualCheckOut = Carbon::parse($date.' '.$checkOut);
+
+        if ($checkIn && $actualCheckOut->lessThanOrEqualTo(Carbon::parse($date.' '.$checkIn))) {
+            $actualCheckOut->addDay();
+        }
+
+        $allowedCheckOut = $scheduledCheckOut->copy()->subMinutes((int) $schedule->early_leave_tolerance_minutes);
+
+        return $actualCheckOut->lessThan($allowedCheckOut)
+            ? $actualCheckOut->diffInMinutes($allowedCheckOut)
+            : 0;
     }
 
     protected function syncAttendanceLog(Attendance $attendance, ?array $locationLog): void

@@ -32,6 +32,11 @@ return [
             'description' => 'Kelola master level karyawan',
             'group' => 'master',
         ],
+        'work_schedules' => [
+            'label' => 'Jadwal Kerja',
+            'description' => 'Kelola master jam kerja dan shift karyawan',
+            'group' => 'master',
+        ],
         'departments' => [
             'label' => 'Departemen',
             'description' => 'Kelola data departemen',

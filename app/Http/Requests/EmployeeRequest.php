@@ -91,6 +91,12 @@ class EmployeeRequest extends FormRequest
                 'nullable',
                 Rule::exists('work_locations', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
             ],
+            'work_schedule_id' => [
+                'nullable',
+                Rule::exists('work_schedules', 'id')->where(fn ($query) => $query
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'active')),
+            ],
             'start_date' => ['nullable', 'date'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'status' => ['required', Rule::in(['active', 'inactive'])],

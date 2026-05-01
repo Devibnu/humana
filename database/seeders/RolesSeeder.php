@@ -18,7 +18,7 @@ class RolesSeeder extends Seeder
             [
                 'name' => 'Admin HR',
                 'description' => 'Hak penuh akses',
-                'permissions' => ['profile', 'users', 'users.manage', 'employees', 'employees.destroy', 'employee_levels', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'attendances', 'attendances.manage', 'attendances.destroy', 'leaves', 'leaves.create', 'leaves.manage', 'leaves.destroy', 'leaves.analytics', 'leaves.reports', 'leaves.approval.hr', 'lembur', 'lembur.submit', 'lembur.approval', 'lembur.reports', 'payroll', 'payroll.manage', 'payroll.reports', 'reports'],
+                'permissions' => ['profile', 'users', 'users.manage', 'employees', 'employees.destroy', 'employee_levels', 'work_schedules', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'attendances', 'attendances.manage', 'attendances.destroy', 'leaves', 'leaves.create', 'leaves.manage', 'leaves.destroy', 'leaves.analytics', 'leaves.reports', 'leaves.approval.hr', 'lembur', 'lembur.submit', 'lembur.approval', 'lembur.reports', 'payroll', 'payroll.manage', 'payroll.reports', 'reports'],
             ],
             [
                 'name' => 'Supervisor',
@@ -28,7 +28,7 @@ class RolesSeeder extends Seeder
             [
                 'name' => 'Manager',
                 'description' => 'Kelola tim',
-                'permissions' => ['profile', 'users', 'employees', 'employee_levels', 'work_locations', 'attendances', 'attendances.manage', 'leaves', 'leaves.manage', 'leaves.analytics', 'leaves.reports', 'leaves.approval.manager', 'lembur', 'lembur.submit', 'lembur.approval'],
+                'permissions' => ['profile', 'users', 'employees', 'employee_levels', 'work_schedules', 'work_locations', 'attendances', 'attendances.manage', 'leaves', 'leaves.manage', 'leaves.analytics', 'leaves.reports', 'leaves.approval.manager', 'lembur', 'lembur.submit', 'lembur.approval'],
             ],
             [
                 'name' => 'Employee',

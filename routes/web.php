@@ -37,6 +37,7 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkLocationController;
+use App\Http\Controllers\WorkScheduleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
@@ -159,6 +160,7 @@ Route::group(['middleware' => 'auth'], function () {
 	Route::post('attendances/self-service', [AttendanceController::class, 'selfService'])->middleware('menu_access:attendances')->name('attendances.self-service');
 	Route::resource('attendances', AttendanceController::class)->middleware('menu_access:attendances')->except('show');
 	Route::resource('work_locations', WorkLocationController::class)->middleware('menu_access:work_locations')->except('show');
+	Route::resource('work-schedules', WorkScheduleController::class)->middleware('menu_access:work_schedules')->except('show');
 	Route::resource('employee-levels', EmployeeLevelController::class)->middleware('menu_access:employee_levels')->except('show');
 	Route::resource('positions', PositionController::class)->middleware('menu_access:positions');
 	Route::resource('departments', DepartmentController::class)->middleware('menu_access:departments');

@@ -14,6 +14,7 @@ use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkLocation;
+use App\Models\WorkSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -359,6 +360,12 @@ class EmployeeController extends Controller
                 ->get(),
             'workLocations' => WorkLocation::query()
                 ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
+                ->orderBy('name')
+                ->get(),
+            'workSchedules' => WorkSchedule::query()
+                ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
+                ->where('status', 'active')
+                ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(),
             'roles' => $this->employeeLevelOptions($tenantId),
