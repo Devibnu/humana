@@ -73,7 +73,12 @@ class EmployeeRequest extends FormRequest
             'dob' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'address' => ['nullable', 'string', 'max:500'],
-            'role' => ['required', Rule::in(['staff', 'supervisor', 'manager'])],
+            'role' => [
+                'required',
+                Rule::exists('employee_levels', 'code')->where(fn ($query) => $query
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'active')),
+            ],
             'position_id' => [
                 'nullable',
                 Rule::exists('positions', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),

@@ -27,6 +27,11 @@ return [
             'description' => 'Hapus data karyawan',
             'group' => 'master',
         ],
+        'employee_levels' => [
+            'label' => 'Level Karyawan',
+            'description' => 'Kelola master level karyawan',
+            'group' => 'master',
+        ],
         'departments' => [
             'label' => 'Departemen',
             'description' => 'Kelola data departemen',
@@ -160,6 +165,7 @@ return [
             'users.manage',
             'employees',
             'employees.destroy',
+            'employee_levels',
             'departments',
             'positions',
             'work_locations',
@@ -188,6 +194,7 @@ return [
             'profile',
             'users',
             'employees',
+            'employee_levels',
             'work_locations',
             'attendances',
             'attendances.manage',

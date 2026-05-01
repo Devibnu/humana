@@ -7,6 +7,7 @@ use App\Http\Requests\EmployeeRequest;
 use App\Models\Attendance;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeLevel;
 use App\Models\FamilyMember;
 use App\Models\Leave;
 use App\Models\Position;
@@ -249,15 +250,6 @@ class EmployeeController extends Controller
         ];
     }
 
-    protected function roles(): array
-    {
-        return [
-            'staff' => 'Staff',
-            'supervisor' => 'Supervisor',
-            'manager' => 'Manager',
-        ];
-    }
-
     protected function resolveIndexFilters(Request $request, User $currentUser): array
     {
         $tenantId = $request->integer('tenant_id');
@@ -369,8 +361,25 @@ class EmployeeController extends Controller
                 ->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId))
                 ->orderBy('name')
                 ->get(),
-            'roles' => $this->roles(),
+            'roles' => $this->employeeLevelOptions($tenantId),
             'statuses' => $this->statuses(),
         ];
+    }
+
+    protected function employeeLevelOptions(?int $tenantId): array
+    {
+        if (! $tenantId) {
+            return EmployeeLevel::defaultsAsOptions();
+        }
+
+        $levels = EmployeeLevel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->pluck('name', 'code')
+            ->all();
+
+        return $levels ?: EmployeeLevel::defaultsAsOptions();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class Tenant extends Model
 {
@@ -28,6 +29,26 @@ class Tenant extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (Tenant $tenant): void {
+            if (! Schema::hasTable('employee_levels')) {
+                return;
+            }
+
+            foreach (EmployeeLevel::defaults() as $level) {
+                $tenant->employeeLevels()->firstOrCreate(
+                    ['code' => $level['code']],
+                    [
+                        'name' => $level['name'],
+                        'status' => 'active',
+                        'sort_order' => $level['sort_order'],
+                    ]
+                );
+            }
+        });
+    }
+
     public function users()
     {
         return $this->hasMany(User::class);
@@ -46,6 +67,11 @@ class Tenant extends Model
     public function departments()
     {
         return $this->hasMany(Department::class);
+    }
+
+    public function employeeLevels()
+    {
+        return $this->hasMany(EmployeeLevel::class);
     }
 
     public function getRouteKeyName()

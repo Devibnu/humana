@@ -10,6 +10,7 @@ use App\Http\Controllers\BankAccountsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeLevelController;
 use App\Http\Controllers\FamilyMembersController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\JenisCutiController;
@@ -158,6 +159,7 @@ Route::group(['middleware' => 'auth'], function () {
 	Route::post('attendances/self-service', [AttendanceController::class, 'selfService'])->middleware('menu_access:attendances')->name('attendances.self-service');
 	Route::resource('attendances', AttendanceController::class)->middleware('menu_access:attendances')->except('show');
 	Route::resource('work_locations', WorkLocationController::class)->middleware('menu_access:work_locations')->except('show');
+	Route::resource('employee-levels', EmployeeLevelController::class)->middleware('menu_access:employee_levels')->except('show');
 	Route::resource('positions', PositionController::class)->middleware('menu_access:positions');
 	Route::resource('departments', DepartmentController::class)->middleware('menu_access:departments');
 	Route::redirect('tenant-management', 'tenants')->name('tenant-management');

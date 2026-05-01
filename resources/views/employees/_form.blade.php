@@ -156,8 +156,9 @@
                     @error('position_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Role Karyawan <span class="text-danger">*</span></label>
+                    <label class="form-label">Level Karyawan <span class="text-danger">*</span></label>
                     <select name="role" class="form-control @error('role') is-invalid @enderror" required>
+                        <option value="">Pilih level karyawan</option>
                         @foreach ($roles as $value => $label)
                             <option value="{{ $value }}" @selected(old('role', $employee->role ?? 'staff') === $value)>
                                 {{ $label }}
