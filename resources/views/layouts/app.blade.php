@@ -92,7 +92,7 @@
   <script>
     (function(){
       try {
-        if (typeof window.iconNavbarSidenav === 'undefined' && !window.__softUiLoaded) {
+        if (!window.__softUiLoaded) {
           window.__softUiLoaded = true;
           var s = document.createElement('script');
           s.src = "{{ asset('assets/js/soft-ui-dashboard.min.js') }}?v=1.0.3";
@@ -103,6 +103,51 @@
         console.error('Error loading Soft UI script', e);
       }
     })();
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var menuButton = document.getElementById('iconNavbarSidenav');
+      var closeButton = document.getElementById('iconSidenav');
+      var sidebar = document.getElementById('sidenav-main');
+      var body = document.body;
+
+      if (!menuButton || !sidebar || !body) {
+        return;
+      }
+
+      function setSidebar(open) {
+        body.classList.toggle('g-sidenav-pinned', open);
+        sidebar.classList.toggle('bg-white', open);
+        sidebar.classList.remove('bg-transparent');
+
+        if (closeButton) {
+          closeButton.classList.toggle('d-none', !open);
+        }
+      }
+
+      menuButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        setSidebar(!body.classList.contains('g-sidenav-pinned'));
+      });
+
+      if (closeButton) {
+        closeButton.addEventListener('click', function (event) {
+          event.preventDefault();
+          setSidebar(false);
+        });
+      }
+
+      document.addEventListener('click', function (event) {
+        if (window.innerWidth >= 1200 || !body.classList.contains('g-sidenav-pinned')) {
+          return;
+        }
+
+        if (!sidebar.contains(event.target) && !menuButton.contains(event.target)) {
+          setSidebar(false);
+        }
+      });
+    });
   </script>
   <script>
     if ('serviceWorker' in navigator && window.isSecureContext) {
