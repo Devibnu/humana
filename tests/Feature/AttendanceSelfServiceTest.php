@@ -12,6 +12,8 @@ use App\Models\WorkLocation;
 use App\Models\WorkSchedule;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AttendanceSelfServiceTest extends TestCase
@@ -41,6 +43,7 @@ class AttendanceSelfServiceTest extends TestCase
 
     public function test_employee_can_check_in_and_check_out_within_work_location_radius(): void
     {
+        Storage::fake('public');
         Carbon::setTestNow('2026-04-30 08:00:00');
         [$user, $employee, $workLocation] = $this->makeEmployeeContext();
 
@@ -49,6 +52,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('check-in.jpg'),
             ]);
 
         $checkInResponse->assertRedirect(route('attendances.index'));
@@ -79,6 +83,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('check-out.jpg'),
             ]);
 
         $checkOutResponse->assertRedirect(route('attendances.index'));
@@ -89,6 +94,7 @@ class AttendanceSelfServiceTest extends TestCase
 
     public function test_employee_self_attendance_calculates_late_and_early_leave_from_work_schedule(): void
     {
+        Storage::fake('public');
         Carbon::setTestNow('2026-04-30 08:15:00');
         [$user, $employee] = $this->makeEmployeeContext();
 
@@ -96,6 +102,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('late-check-in.jpg'),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -115,6 +122,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('early-check-out.jpg'),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -123,6 +131,7 @@ class AttendanceSelfServiceTest extends TestCase
 
     public function test_employee_self_attendance_can_check_out_open_night_shift_on_next_day(): void
     {
+        Storage::fake('public');
         Carbon::setTestNow('2026-04-30 23:05:00');
         [$user, $employee] = $this->makeEmployeeContext(scheduleCode: 'shift_malam');
 
@@ -130,6 +139,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('night-check-in.jpg'),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -139,6 +149,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
+                'attendance_photo' => UploadedFile::fake()->image('night-check-out.jpg'),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -155,6 +166,7 @@ class AttendanceSelfServiceTest extends TestCase
 
     public function test_employee_self_attendance_rejects_location_outside_radius(): void
     {
+        Storage::fake('public');
         Carbon::setTestNow('2026-04-30 08:15:00');
         [$user, $employee] = $this->makeEmployeeContext();
 
@@ -163,6 +175,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0400000,
                 'longitude' => 106.1600000,
+                'attendance_photo' => UploadedFile::fake()->image('outside.jpg'),
             ]);
 
         $response->assertRedirect(route('attendances.index'));

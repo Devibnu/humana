@@ -19,7 +19,7 @@
                         </ul>
                     </div>
                 @endif
-                <form action="{{ route('attendances.update', $attendance) }}" method="POST">
+                <form action="{{ route('attendances.update', $attendance) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
                     @include('attendances._form')

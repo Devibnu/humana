@@ -17,6 +17,8 @@ class AttendanceLog extends Model
         'latitude',
         'longitude',
         'distance_meters',
+        'check_in_photo_path',
+        'check_out_photo_path',
     ];
 
     public function attendance()

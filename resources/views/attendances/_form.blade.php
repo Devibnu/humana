@@ -88,6 +88,25 @@
     </div>
 
     <div class="col-md-6 mt-3">
+        <label class="form-label">Foto Masuk</label>
+        <input type="file" name="check_in_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user">
+        @if ($attendanceLocationLog?->check_in_photo_path)
+            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_in_photo_path) }}" target="_blank" class="text-xs d-inline-block mt-2">Lihat foto masuk tersimpan</a>
+        @else
+            <small class="text-muted">Opsional untuk input manual admin.</small>
+        @endif
+    </div>
+    <div class="col-md-6 mt-3">
+        <label class="form-label">Foto Pulang</label>
+        <input type="file" name="check_out_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user">
+        @if ($attendanceLocationLog?->check_out_photo_path)
+            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_out_photo_path) }}" target="_blank" class="text-xs d-inline-block mt-2">Lihat foto pulang tersimpan</a>
+        @else
+            <small class="text-muted">Opsional untuk input manual admin.</small>
+        @endif
+    </div>
+
+    <div class="col-md-6 mt-3">
         <label class="form-label d-flex align-items-center gap-1">
             Device Latitude
             <i class="fas fa-info-circle text-secondary text-xs" data-bs-toggle="tooltip" title="Koordinat perangkat diperlukan untuk validasi jarak ke lokasi kerja"></i>

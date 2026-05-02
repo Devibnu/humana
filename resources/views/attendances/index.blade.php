@@ -26,7 +26,7 @@
                         <span class="badge bg-white text-dark">{{ $selfNextAction === 'check_out' ? 'Sudah Masuk' : ($selfNextAction === 'complete' ? 'Lengkap' : 'Siap Absen') }}</span>
                     </div>
 
-                    <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form-mobile" data-testid="self-attendance-form-mobile">
+                    <form action="{{ route('attendances.self-service') }}" method="POST" enctype="multipart/form-data" id="self-attendance-form-mobile" data-testid="self-attendance-form-mobile">
                         @csrf
                         <input type="hidden" name="latitude" id="self-attendance-latitude-mobile">
                         <input type="hidden" name="longitude" id="self-attendance-longitude-mobile">
@@ -42,6 +42,10 @@
                             <button type="submit" class="btn bg-white text-dark humana-mobile-action mb-3" id="btn-self-attendance-mobile" data-testid="btn-self-attendance-mobile">
                                 <i class="fas fa-location-arrow me-2 text-primary"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
                             </button>
+                            <div class="mb-3">
+                                <label class="form-label text-white-50 text-xs mb-2">Foto Selfie Absensi</label>
+                                <input type="file" name="attendance_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user" required data-testid="self-attendance-photo-mobile">
+                            </div>
                         @endif
                     </form>
 
@@ -103,7 +107,7 @@
                 @endif
                 @if ($currentUser && $currentUser->isEmployee())
                     <div class="d-flex flex-column align-items-lg-end gap-2 d-none d-md-flex">
-                        <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form" class="d-flex flex-wrap gap-2 justify-content-end align-items-center" data-testid="self-attendance-form">
+                        <form action="{{ route('attendances.self-service') }}" method="POST" enctype="multipart/form-data" id="self-attendance-form" class="d-flex flex-wrap gap-2 justify-content-end align-items-center" data-testid="self-attendance-form">
                             @csrf
                             <input type="hidden" name="latitude" id="self-attendance-latitude">
                             <input type="hidden" name="longitude" id="self-attendance-longitude">
@@ -119,6 +123,7 @@
                                 <button type="submit" class="btn bg-gradient-primary btn-sm mb-0" id="btn-self-attendance" data-testid="btn-self-attendance">
                                     <i class="fas fa-location-arrow me-1"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
                                 </button>
+                                <input type="file" name="attendance_photo" class="form-control form-control-sm w-auto" accept="image/jpeg,image/png,image/webp" capture="user" required data-testid="self-attendance-photo">
                             @endif
                         </form>
                         @if ($selfWorkLocation)
@@ -183,6 +188,8 @@
                                 @php($workLocationName = $attendanceLog?->workLocation?->name ?? $attendance->employee?->workLocation?->name ?? '—')
                                 @php($workSchedule = $attendance->workSchedule ?? $attendance->employee?->workSchedule)
                                 @php($coordinates = $attendanceLog ? number_format((float) $attendanceLog->latitude, 7, '.', '').', '.number_format((float) $attendanceLog->longitude, 7, '.', '') : '—')
+                                @php($checkInPhotoUrl = $attendanceLog?->check_in_photo_path ? \Illuminate\Support\Facades\Storage::url($attendanceLog->check_in_photo_path) : null)
+                                @php($checkOutPhotoUrl = $attendanceLog?->check_out_photo_path ? \Illuminate\Support\Facades\Storage::url($attendanceLog->check_out_photo_path) : null)
                                 <div class="humana-attendance-item" data-testid="attendance-mobile-card-{{ $attendance->id }}">
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
@@ -226,6 +233,19 @@
                                                 <p class="text-xs mb-0">{{ $coordinates }}</p>
                                             </div>
                                         @endif
+                                        @if ($checkInPhotoUrl || $checkOutPhotoUrl)
+                                            <div class="col-12">
+                                                <p class="text-xxs text-secondary mb-1">Foto Absensi</p>
+                                                <div class="d-flex gap-2 flex-wrap">
+                                                    @if ($checkInPhotoUrl)
+                                                        <a href="{{ $checkInPhotoUrl }}" target="_blank" class="badge bg-gradient-success">Foto Masuk</a>
+                                                    @endif
+                                                    @if ($checkOutPhotoUrl)
+                                                        <a href="{{ $checkOutPhotoUrl }}" target="_blank" class="badge bg-gradient-info">Foto Pulang</a>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             @endforeach
@@ -254,6 +274,8 @@
                                     @php($workLocationName = $attendanceLog?->workLocation?->name ?? $attendance->employee?->workLocation?->name ?? '—')
                                     @php($workSchedule = $attendance->workSchedule ?? $attendance->employee?->workSchedule)
                                     @php($coordinates = $attendanceLog ? number_format((float) $attendanceLog->latitude, 7, '.', '').', '.number_format((float) $attendanceLog->longitude, 7, '.', '') : '—')
+                                    @php($checkInPhotoUrl = $attendanceLog?->check_in_photo_path ? \Illuminate\Support\Facades\Storage::url($attendanceLog->check_in_photo_path) : null)
+                                    @php($checkOutPhotoUrl = $attendanceLog?->check_out_photo_path ? \Illuminate\Support\Facades\Storage::url($attendanceLog->check_out_photo_path) : null)
                                     <tr>
                                         <td class="ps-4">
                                             <p class="text-xs font-weight-bold mb-0">{{ \Illuminate\Support\Carbon::parse($attendance->date)->format('d M Y') }}</p>
@@ -283,7 +305,19 @@
                                                 <p class="text-xs text-danger mb-0">Pulang cepat {{ $attendance->early_leave_minutes }}m</p>
                                             @endif
                                         </td>
-                                        <td class="text-center"><span class="text-secondary text-xs font-weight-bold">{{ $coordinates }}</span></td>
+                                        <td class="text-center">
+                                            <span class="text-secondary text-xs font-weight-bold">{{ $coordinates }}</span>
+                                            @if ($checkInPhotoUrl || $checkOutPhotoUrl)
+                                                <div class="d-flex justify-content-center gap-2 mt-1">
+                                                    @if ($checkInPhotoUrl)
+                                                        <a href="{{ $checkInPhotoUrl }}" target="_blank" class="text-xs text-success font-weight-bold">Masuk</a>
+                                                    @endif
+                                                    @if ($checkOutPhotoUrl)
+                                                        <a href="{{ $checkOutPhotoUrl }}" target="_blank" class="text-xs text-info font-weight-bold">Pulang</a>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </td>
                                         @if ($currentUser && ($currentUser->isAdminHr() || $currentUser->isManager()))
                                             <td class="text-center">
                                                 <div class="d-flex justify-content-center align-items-center gap-3">
@@ -333,7 +367,7 @@
                             <p class="text-sm text-secondary mb-0">Kehadiran hanya dapat dicatat jika data karyawan sudah tersedia di tenant terkait.</p>
                         </div>
                     @else
-                        <form action="{{ route('attendances.store') }}" method="POST" data-testid="attendances-index-create-form">
+                        <form action="{{ route('attendances.store') }}" method="POST" enctype="multipart/form-data" data-testid="attendances-index-create-form">
                             @csrf
                             @include('attendances._form')
                             <div class="d-flex justify-content-end gap-2 mt-4 flex-wrap">
@@ -382,6 +416,13 @@
 
                         navigator.geolocation.getCurrentPosition(
                             function (position) {
+                                var photoInput = form.querySelector('input[name="attendance_photo"]');
+                                if (photoInput && !photoInput.files.length) {
+                                    button.disabled = false;
+                                    statusElement.textContent = 'Ambil foto selfie absensi terlebih dahulu.';
+                                    return;
+                                }
+
                                 latitudeInput.value = position.coords.latitude.toFixed(7);
                                 longitudeInput.value = position.coords.longitude.toFixed(7);
                                 statusElement.textContent = 'Lokasi terbaca, menyimpan absensi...';
@@ -421,7 +462,7 @@
     @endpush
 @endif
 
-@if ($errors->has('tenant_id') || $errors->has('employee_id') || $errors->has('work_location_id') || $errors->has('date') || $errors->has('check_in') || $errors->has('check_out') || $errors->has('status') || $errors->has('latitude') || $errors->has('longitude'))
+@if ($errors->has('tenant_id') || $errors->has('employee_id') || $errors->has('work_location_id') || $errors->has('date') || $errors->has('check_in') || $errors->has('check_out') || $errors->has('status') || $errors->has('latitude') || $errors->has('longitude') || $errors->has('check_in_photo') || $errors->has('check_out_photo'))
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function () {
