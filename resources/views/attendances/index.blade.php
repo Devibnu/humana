@@ -381,6 +381,45 @@
 @endif
 
 @if ($currentUser && $currentUser->isEmployee())
+    <style>
+        .attendance-camera-frame {
+            aspect-ratio: 3 / 4;
+            position: relative;
+        }
+
+        .attendance-camera-frame::before {
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.3);
+            content: "";
+            height: 58%;
+            left: 18%;
+            position: absolute;
+            top: 12%;
+            width: 64%;
+            z-index: 2;
+        }
+
+        .attendance-camera-frame::after {
+            background: rgba(0, 0, 0, 0.55);
+            border-radius: .75rem;
+            bottom: .75rem;
+            color: #fff;
+            content: "Posisikan wajah penuh di dalam garis";
+            font-size: .75rem;
+            left: 50%;
+            padding: .45rem .75rem;
+            position: absolute;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            z-index: 3;
+        }
+
+        .attendance-camera-frame video {
+            transform: scaleX(-1);
+        }
+    </style>
+
     <div class="modal fade" id="selfAttendanceCameraModal" tabindex="-1" aria-labelledby="selfAttendanceCameraModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -389,11 +428,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="ratio ratio-4x3 bg-dark border-radius-lg overflow-hidden mb-3">
+                    <div class="attendance-camera-frame bg-dark border-radius-lg overflow-hidden mb-3">
                         <video id="self-attendance-camera-preview" autoplay playsinline muted class="w-100 h-100 object-fit-cover"></video>
                         <canvas id="self-attendance-camera-canvas" class="d-none"></canvas>
                     </div>
-                    <p class="text-sm text-secondary mb-0" id="self-attendance-camera-status">Pastikan wajah terlihat jelas sebelum menyimpan absensi.</p>
+                    <p class="text-sm text-secondary mb-0" id="self-attendance-camera-status">Wajah harus penuh, tidak terpotong, dan berada di tengah frame.</p>
                 </div>
                 <div class="modal-footer flex-wrap gap-2">
                     <button type="button" class="btn btn-light mb-0" data-bs-dismiss="modal">
@@ -465,8 +504,9 @@
                     navigator.mediaDevices.getUserMedia({
                         video: {
                             facingMode: 'user',
-                            width: { ideal: 960 },
-                            height: { ideal: 720 },
+                            width: { ideal: 720 },
+                            height: { ideal: 960 },
+                            aspectRatio: { ideal: 0.75 },
                         },
                         audio: false,
                     }).then(function (stream) {
@@ -474,7 +514,7 @@
                         cameraVideo.srcObject = stream;
 
                         if (cameraStatus) {
-                            cameraStatus.textContent = 'Pastikan wajah terlihat jelas sebelum menyimpan absensi.';
+                            cameraStatus.textContent = 'Wajah harus penuh, tidak terpotong, dan berada di tengah frame.';
                         }
 
                         if (cameraModal) {
@@ -554,10 +594,67 @@
                     });
                 }
 
+                function validateFaceInFrame(canvas) {
+                    if (!('FaceDetector' in window)) {
+                        if (cameraStatus) {
+                            cameraStatus.textContent = 'Browser belum mendukung validasi wajah otomatis. Pastikan wajah penuh di dalam garis.';
+                        }
+
+                        return Promise.resolve(true);
+                    }
+
+                    var detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 2 });
+
+                    return detector.detect(canvas).then(function (faces) {
+                        if (!faces.length) {
+                            return 'Wajah tidak terdeteksi. Hadapkan wajah ke kamera lalu ambil ulang.';
+                        }
+
+                        if (faces.length > 1) {
+                            return 'Terdeteksi lebih dari satu wajah. Foto absensi harus satu orang.';
+                        }
+
+                        var box = faces[0].boundingBox;
+                        var width = canvas.width;
+                        var height = canvas.height;
+                        var left = box.x;
+                        var top = box.y;
+                        var right = box.x + box.width;
+                        var bottom = box.y + box.height;
+                        var centerX = left + (box.width / 2);
+                        var centerY = top + (box.height / 2);
+
+                        if (box.width < width * 0.22 || box.height < height * 0.24) {
+                            return 'Wajah terlalu jauh/kecil. Dekatkan wajah ke kamera.';
+                        }
+
+                        if (left < width * 0.05 || right > width * 0.95 || top < height * 0.04 || bottom > height * 0.92) {
+                            return 'Wajah terlihat terpotong atau terlalu pinggir. Posisikan wajah penuh di tengah frame.';
+                        }
+
+                        if (centerX < width * 0.30 || centerX > width * 0.70 || centerY < height * 0.24 || centerY > height * 0.68) {
+                            return 'Wajah belum berada di tengah frame. Rapikan posisi lalu ambil ulang.';
+                        }
+
+                        return true;
+                    }).catch(function () {
+                        if (cameraStatus) {
+                            cameraStatus.textContent = 'Validasi wajah otomatis belum tersedia. Pastikan wajah penuh di dalam garis.';
+                        }
+
+                        return true;
+                    });
+                }
+
                 if (captureButton) {
                     captureButton.addEventListener('click', function () {
                         if (!pendingAttendance || !cameraVideo || !cameraCanvas || !cameraStream) {
                             return;
+                        }
+
+                        captureButton.disabled = true;
+                        if (cameraStatus) {
+                            cameraStatus.textContent = 'Memeriksa posisi wajah...';
                         }
 
                         var width = cameraVideo.videoWidth || 960;
@@ -566,16 +663,31 @@
                         cameraCanvas.height = height;
                         cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0, width, height);
 
-                        pendingAttendance.photoDataInput.value = cameraCanvas.toDataURL('image/jpeg', 0.86);
-                        pendingAttendance.statusElement.textContent = 'Foto live tersimpan, menyimpan absensi...';
+                        validateFaceInFrame(cameraCanvas).then(function (result) {
+                            if (result !== true) {
+                                if (cameraStatus) {
+                                    cameraStatus.textContent = result;
+                                }
 
-                        stopCamera();
+                                if (pendingAttendance && pendingAttendance.statusElement) {
+                                    pendingAttendance.statusElement.textContent = result;
+                                }
 
-                        if (cameraModal) {
-                            cameraModal.hide();
-                        }
+                                captureButton.disabled = false;
+                                return;
+                            }
 
-                        pendingAttendance.form.submit();
+                            pendingAttendance.photoDataInput.value = cameraCanvas.toDataURL('image/jpeg', 0.86);
+                            pendingAttendance.statusElement.textContent = 'Foto live tersimpan, menyimpan absensi...';
+
+                            stopCamera();
+
+                            if (cameraModal) {
+                                cameraModal.hide();
+                            }
+
+                            pendingAttendance.form.submit();
+                        });
                     });
                 }
 
