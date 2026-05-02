@@ -22,7 +22,7 @@
                         <p class="text-sm text-secondary mb-0">Kehadiran hanya dapat dicatat jika data karyawan sudah tersedia di tenant terkait.</p>
                     </div>
                 @else
-                    <form action="{{ route('attendances.store') }}" method="POST" enctype="multipart/form-data" data-testid="attendances-create-form">
+                    <form action="{{ route('attendances.store') }}" method="POST" data-testid="attendances-create-form">
                         @csrf
                         @include('attendances._form')
                         <div class="d-flex justify-content-end gap-2 mt-4 flex-wrap">

@@ -87,24 +87,28 @@
         <input type="time" name="check_out" class="form-control" value="{{ old('check_out', $attendance->check_out ?? '') }}">
     </div>
 
-    <div class="col-md-6 mt-3">
-        <label class="form-label">Foto Masuk</label>
-        <input type="file" name="check_in_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user">
-        @if ($attendanceLocationLog?->check_in_photo_path)
-            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_in_photo_path) }}" target="_blank" class="text-xs d-inline-block mt-2">Lihat foto masuk tersimpan</a>
-        @else
-            <small class="text-muted">Opsional untuk input manual admin.</small>
-        @endif
-    </div>
-    <div class="col-md-6 mt-3">
-        <label class="form-label">Foto Pulang</label>
-        <input type="file" name="check_out_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user">
-        @if ($attendanceLocationLog?->check_out_photo_path)
-            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_out_photo_path) }}" target="_blank" class="text-xs d-inline-block mt-2">Lihat foto pulang tersimpan</a>
-        @else
-            <small class="text-muted">Opsional untuk input manual admin.</small>
-        @endif
-    </div>
+    @if ($attendanceLocationLog?->check_in_photo_path || $attendanceLocationLog?->check_out_photo_path)
+        <div class="col-12 mt-3">
+            <div class="card border shadow-none mb-0">
+                <div class="card-body p-3">
+                    <p class="text-sm font-weight-bold mb-1">Bukti Foto Self-Service</p>
+                    <p class="text-xs text-secondary mb-2">Foto ini tersimpan dari kamera live karyawan saat menekan tombol absen.</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if ($attendanceLocationLog?->check_in_photo_path)
+                            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_in_photo_path) }}" target="_blank" class="btn btn-outline-success btn-sm mb-0">
+                                <i class="fas fa-camera me-1"></i> Lihat Foto Masuk
+                            </a>
+                        @endif
+                        @if ($attendanceLocationLog?->check_out_photo_path)
+                            <a href="{{ \Illuminate\Support\Facades\Storage::url($attendanceLocationLog->check_out_photo_path) }}" target="_blank" class="btn btn-outline-info btn-sm mb-0">
+                                <i class="fas fa-camera me-1"></i> Lihat Foto Pulang
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="col-md-6 mt-3">
         <label class="form-label d-flex align-items-center gap-1">

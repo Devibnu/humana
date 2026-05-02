@@ -26,10 +26,11 @@
                         <span class="badge bg-white text-dark">{{ $selfNextAction === 'check_out' ? 'Sudah Masuk' : ($selfNextAction === 'complete' ? 'Lengkap' : 'Siap Absen') }}</span>
                     </div>
 
-                    <form action="{{ route('attendances.self-service') }}" method="POST" enctype="multipart/form-data" id="self-attendance-form-mobile" data-testid="self-attendance-form-mobile">
+                    <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form-mobile" data-testid="self-attendance-form-mobile">
                         @csrf
                         <input type="hidden" name="latitude" id="self-attendance-latitude-mobile">
                         <input type="hidden" name="longitude" id="self-attendance-longitude-mobile">
+                        <input type="hidden" name="attendance_photo_data" id="self-attendance-photo-data-mobile">
                         @if (! $selfWorkLocation)
                             <button type="button" class="btn btn-light humana-mobile-action mb-3" disabled data-testid="btn-self-attendance-disabled-mobile">
                                 <i class="fas fa-map-marker-alt me-2"></i> Lokasi kerja belum diatur
@@ -40,12 +41,8 @@
                             </button>
                         @else
                             <button type="submit" class="btn bg-white text-dark humana-mobile-action mb-3" id="btn-self-attendance-mobile" data-testid="btn-self-attendance-mobile">
-                                <i class="fas fa-location-arrow me-2 text-primary"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
+                                <i class="fas fa-camera me-2 text-primary"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
                             </button>
-                            <div class="mb-3">
-                                <label class="form-label text-white-50 text-xs mb-2">Foto Selfie Absensi</label>
-                                <input type="file" name="attendance_photo" class="form-control" accept="image/jpeg,image/png,image/webp" capture="user" required data-testid="self-attendance-photo-mobile">
-                            </div>
                         @endif
                     </form>
 
@@ -107,10 +104,11 @@
                 @endif
                 @if ($currentUser && $currentUser->isEmployee())
                     <div class="d-flex flex-column align-items-lg-end gap-2 d-none d-md-flex">
-                        <form action="{{ route('attendances.self-service') }}" method="POST" enctype="multipart/form-data" id="self-attendance-form" class="d-flex flex-wrap gap-2 justify-content-end align-items-center" data-testid="self-attendance-form">
+                        <form action="{{ route('attendances.self-service') }}" method="POST" id="self-attendance-form" class="d-flex flex-wrap gap-2 justify-content-end align-items-center" data-testid="self-attendance-form">
                             @csrf
                             <input type="hidden" name="latitude" id="self-attendance-latitude">
                             <input type="hidden" name="longitude" id="self-attendance-longitude">
+                            <input type="hidden" name="attendance_photo_data" id="self-attendance-photo-data">
                             @if (! $selfWorkLocation)
                                 <button type="button" class="btn btn-light btn-sm mb-0" disabled data-testid="btn-self-attendance-disabled">
                                     <i class="fas fa-map-marker-alt me-1"></i> Lokasi kerja belum diatur
@@ -121,9 +119,8 @@
                                 </button>
                             @else
                                 <button type="submit" class="btn bg-gradient-primary btn-sm mb-0" id="btn-self-attendance" data-testid="btn-self-attendance">
-                                    <i class="fas fa-location-arrow me-1"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
+                                    <i class="fas fa-camera me-1"></i> {{ $selfNextAction === 'check_out' ? 'Absen Pulang' : 'Absen Masuk' }}
                                 </button>
-                                <input type="file" name="attendance_photo" class="form-control form-control-sm w-auto" accept="image/jpeg,image/png,image/webp" capture="user" required data-testid="self-attendance-photo">
                             @endif
                         </form>
                         @if ($selfWorkLocation)
@@ -367,7 +364,7 @@
                             <p class="text-sm text-secondary mb-0">Kehadiran hanya dapat dicatat jika data karyawan sudah tersedia di tenant terkait.</p>
                         </div>
                     @else
-                        <form action="{{ route('attendances.store') }}" method="POST" enctype="multipart/form-data" data-testid="attendances-index-create-form">
+                        <form action="{{ route('attendances.store') }}" method="POST" data-testid="attendances-index-create-form">
                             @csrf
                             @include('attendances._form')
                             <div class="d-flex justify-content-end gap-2 mt-4 flex-wrap">
@@ -384,17 +381,119 @@
 @endif
 
 @if ($currentUser && $currentUser->isEmployee())
+    <div class="modal fade" id="selfAttendanceCameraModal" tabindex="-1" aria-labelledby="selfAttendanceCameraModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="selfAttendanceCameraModalLabel">Foto Live Absensi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="ratio ratio-4x3 bg-dark border-radius-lg overflow-hidden mb-3">
+                        <video id="self-attendance-camera-preview" autoplay playsinline muted class="w-100 h-100 object-fit-cover"></video>
+                        <canvas id="self-attendance-camera-canvas" class="d-none"></canvas>
+                    </div>
+                    <p class="text-sm text-secondary mb-0" id="self-attendance-camera-status">Pastikan wajah terlihat jelas sebelum menyimpan absensi.</p>
+                </div>
+                <div class="modal-footer flex-wrap gap-2">
+                    <button type="button" class="btn btn-light mb-0" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Batal
+                    </button>
+                    <button type="button" class="btn bg-gradient-primary mb-0" id="self-attendance-capture-button">
+                        <i class="fas fa-camera me-1"></i> Ambil Foto & Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                function bindSelfAttendance(formId, buttonId, latitudeId, longitudeId, statusId) {
+                var pendingAttendance = null;
+                var cameraStream = null;
+                var cameraModalElement = document.getElementById('selfAttendanceCameraModal');
+                var cameraVideo = document.getElementById('self-attendance-camera-preview');
+                var cameraCanvas = document.getElementById('self-attendance-camera-canvas');
+                var cameraStatus = document.getElementById('self-attendance-camera-status');
+                var captureButton = document.getElementById('self-attendance-capture-button');
+                var cameraModal = cameraModalElement && typeof bootstrap !== 'undefined'
+                    ? bootstrap.Modal.getOrCreateInstance(cameraModalElement)
+                    : null;
+
+                function stopCamera() {
+                    if (cameraStream) {
+                        cameraStream.getTracks().forEach(function (track) {
+                            track.stop();
+                        });
+                    }
+
+                    cameraStream = null;
+
+                    if (cameraVideo) {
+                        cameraVideo.srcObject = null;
+                    }
+                }
+
+                function resetPendingAttendance() {
+                    if (pendingAttendance && pendingAttendance.button) {
+                        pendingAttendance.button.disabled = false;
+                    }
+
+                    pendingAttendance = null;
+                }
+
+                function failPendingAttendance(message) {
+                    if (pendingAttendance && pendingAttendance.statusElement) {
+                        pendingAttendance.statusElement.textContent = message;
+                    }
+
+                    stopCamera();
+                    resetPendingAttendance();
+                }
+
+                function openCamera() {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        failPendingAttendance('Browser tidak mendukung kamera live. Gunakan Chrome/Safari terbaru melalui HTTPS.');
+                        return;
+                    }
+
+                    if (cameraStatus) {
+                        cameraStatus.textContent = 'Membuka kamera perangkat...';
+                    }
+
+                    navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'user',
+                            width: { ideal: 960 },
+                            height: { ideal: 720 },
+                        },
+                        audio: false,
+                    }).then(function (stream) {
+                        cameraStream = stream;
+                        cameraVideo.srcObject = stream;
+
+                        if (cameraStatus) {
+                            cameraStatus.textContent = 'Pastikan wajah terlihat jelas sebelum menyimpan absensi.';
+                        }
+
+                        if (cameraModal) {
+                            cameraModal.show();
+                        }
+                    }).catch(function () {
+                        failPendingAttendance('Tidak dapat membuka kamera. Izinkan akses kamera untuk situs ini lalu coba lagi.');
+                    });
+                }
+
+                function bindSelfAttendance(formId, buttonId, latitudeId, longitudeId, photoDataId, statusId) {
                     var form = document.getElementById(formId);
                     var button = document.getElementById(buttonId);
                     var latitudeInput = document.getElementById(latitudeId);
                     var longitudeInput = document.getElementById(longitudeId);
+                    var photoDataInput = document.getElementById(photoDataId);
                     var statusElement = document.getElementById(statusId);
 
-                    if (!form || !button || !latitudeInput || !longitudeInput || !statusElement) {
+                    if (!form || !button || !latitudeInput || !longitudeInput || !photoDataInput || !statusElement) {
                         return;
                     }
 
@@ -402,7 +501,7 @@
                         event.preventDefault();
 
                         if (!window.isSecureContext) {
-                            statusElement.textContent = 'Browser memblokir lokasi karena halaman belum HTTPS. Buka lewat HTTPS atau izinkan lokasi untuk situs ini.';
+                            statusElement.textContent = 'Browser memblokir kamera/lokasi karena halaman belum HTTPS. Buka lewat HTTPS lalu coba lagi.';
                             return;
                         }
 
@@ -413,20 +512,20 @@
 
                         button.disabled = true;
                         statusElement.textContent = 'Sedang mengambil lokasi perangkat...';
+                        photoDataInput.value = '';
 
                         navigator.geolocation.getCurrentPosition(
                             function (position) {
-                                var photoInput = form.querySelector('input[name="attendance_photo"]');
-                                if (photoInput && !photoInput.files.length) {
-                                    button.disabled = false;
-                                    statusElement.textContent = 'Ambil foto selfie absensi terlebih dahulu.';
-                                    return;
-                                }
-
                                 latitudeInput.value = position.coords.latitude.toFixed(7);
                                 longitudeInput.value = position.coords.longitude.toFixed(7);
-                                statusElement.textContent = 'Lokasi terbaca, menyimpan absensi...';
-                                form.submit();
+                                statusElement.textContent = 'Lokasi terbaca, lanjutkan dengan foto live.';
+                                pendingAttendance = {
+                                    form: form,
+                                    button: button,
+                                    photoDataInput: photoDataInput,
+                                    statusElement: statusElement,
+                                };
+                                openCamera();
                             },
                             function (error) {
                                 button.disabled = false;
@@ -455,14 +554,49 @@
                     });
                 }
 
-                bindSelfAttendance('self-attendance-form', 'btn-self-attendance', 'self-attendance-latitude', 'self-attendance-longitude', 'self-attendance-status');
-                bindSelfAttendance('self-attendance-form-mobile', 'btn-self-attendance-mobile', 'self-attendance-latitude-mobile', 'self-attendance-longitude-mobile', 'self-attendance-status-mobile');
+                if (captureButton) {
+                    captureButton.addEventListener('click', function () {
+                        if (!pendingAttendance || !cameraVideo || !cameraCanvas || !cameraStream) {
+                            return;
+                        }
+
+                        var width = cameraVideo.videoWidth || 960;
+                        var height = cameraVideo.videoHeight || 720;
+                        cameraCanvas.width = width;
+                        cameraCanvas.height = height;
+                        cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0, width, height);
+
+                        pendingAttendance.photoDataInput.value = cameraCanvas.toDataURL('image/jpeg', 0.86);
+                        pendingAttendance.statusElement.textContent = 'Foto live tersimpan, menyimpan absensi...';
+
+                        stopCamera();
+
+                        if (cameraModal) {
+                            cameraModal.hide();
+                        }
+
+                        pendingAttendance.form.submit();
+                    });
+                }
+
+                if (cameraModalElement) {
+                    cameraModalElement.addEventListener('hidden.bs.modal', function () {
+                        stopCamera();
+
+                        if (pendingAttendance && !pendingAttendance.photoDataInput.value) {
+                            failPendingAttendance('Absensi dibatalkan. Foto live wajib diambil saat menekan tombol absen.');
+                        }
+                    });
+                }
+
+                bindSelfAttendance('self-attendance-form', 'btn-self-attendance', 'self-attendance-latitude', 'self-attendance-longitude', 'self-attendance-photo-data', 'self-attendance-status');
+                bindSelfAttendance('self-attendance-form-mobile', 'btn-self-attendance-mobile', 'self-attendance-latitude-mobile', 'self-attendance-longitude-mobile', 'self-attendance-photo-data-mobile', 'self-attendance-status-mobile');
             });
         </script>
     @endpush
 @endif
 
-@if ($errors->has('tenant_id') || $errors->has('employee_id') || $errors->has('work_location_id') || $errors->has('date') || $errors->has('check_in') || $errors->has('check_out') || $errors->has('status') || $errors->has('latitude') || $errors->has('longitude') || $errors->has('check_in_photo') || $errors->has('check_out_photo'))
+@if ($errors->has('tenant_id') || $errors->has('employee_id') || $errors->has('work_location_id') || $errors->has('date') || $errors->has('check_in') || $errors->has('check_out') || $errors->has('status') || $errors->has('latitude') || $errors->has('longitude'))
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function () {

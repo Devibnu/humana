@@ -52,7 +52,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('check-in.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ]);
 
         $checkInResponse->assertRedirect(route('attendances.index'));
@@ -67,6 +67,9 @@ class AttendanceSelfServiceTest extends TestCase
         $this->assertSame('08:00', substr($attendance->check_in, 0, 5));
         $this->assertNull($attendance->check_out);
         $this->assertSame('present', $attendance->status);
+
+        $this->assertNotNull($attendance->attendanceLog?->check_in_photo_path);
+        Storage::disk('public')->assertExists($attendance->attendanceLog->check_in_photo_path);
 
         $this->assertDatabaseHas('attendance_logs', [
             'attendance_id' => $attendance->id,
@@ -83,13 +86,15 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('check-out.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ]);
 
         $checkOutResponse->assertRedirect(route('attendances.index'));
         $checkOutResponse->assertSessionHas('success', 'Absen pulang berhasil disimpan.');
 
         $this->assertSame('17:05', substr($attendance->fresh()->check_out, 0, 5));
+        $this->assertNotNull($attendance->fresh()->attendanceLog?->check_out_photo_path);
+        Storage::disk('public')->assertExists($attendance->fresh()->attendanceLog->check_out_photo_path);
     }
 
     public function test_employee_self_attendance_calculates_late_and_early_leave_from_work_schedule(): void
@@ -102,7 +107,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('late-check-in.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -122,7 +127,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('early-check-out.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -139,7 +144,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('night-check-in.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -149,7 +154,7 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0336840,
                 'longitude' => 106.1525630,
-                'attendance_photo' => UploadedFile::fake()->image('night-check-out.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ])
             ->assertRedirect(route('attendances.index'));
 
@@ -175,13 +180,34 @@ class AttendanceSelfServiceTest extends TestCase
             ->post(route('attendances.self-service'), [
                 'latitude' => -6.0400000,
                 'longitude' => 106.1600000,
-                'attendance_photo' => UploadedFile::fake()->image('outside.jpg'),
+                'attendance_photo_data' => $this->fakeLivePhotoData(),
             ]);
 
         $response->assertRedirect(route('attendances.index'));
         $response->assertSessionHasErrors([
             'latitude' => 'Kehadiran berada di luar radius lokasi kerja yang diizinkan.',
         ]);
+
+        $this->assertDatabaseMissing('attendances', [
+            'employee_id' => $employee->id,
+            'date' => '2026-04-30',
+        ]);
+    }
+
+    public function test_employee_self_attendance_requires_live_photo_data(): void
+    {
+        Carbon::setTestNow('2026-04-30 08:15:00');
+        [$user, $employee] = $this->makeEmployeeContext();
+
+        $response = $this->actingAs($user)
+            ->from(route('attendances.index'))
+            ->post(route('attendances.self-service'), [
+                'latitude' => -6.0336840,
+                'longitude' => 106.1525630,
+            ]);
+
+        $response->assertRedirect(route('attendances.index'));
+        $response->assertSessionHasErrors('attendance_photo_data');
 
         $this->assertDatabaseMissing('attendances', [
             'employee_id' => $employee->id,
@@ -198,6 +224,13 @@ class AttendanceSelfServiceTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-testid="btn-self-attendance-disabled"', false);
         $response->assertSee('Lokasi kerja belum diatur');
+    }
+
+    protected function fakeLivePhotoData(): string
+    {
+        $file = UploadedFile::fake()->image('attendance.jpg');
+
+        return 'data:image/jpeg;base64,'.base64_encode(file_get_contents($file->getPathname()));
     }
 
     protected function makeEmployeeContext(bool $withWorkLocation = true, string $scheduleCode = 'office_hour'): array

@@ -91,17 +91,14 @@ class AttendanceController extends Controller
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'check_in_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'check_out_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         $data['tenant_id'] = $tenantId;
         $employee = Employee::with(['workLocation', 'workSchedule'])->findOrFail($data['employee_id']);
         $workLocation = WorkLocation::query()->findOrFail($data['work_location_id']);
         $locationLog = $this->resolveAttendanceLocationLog($employee, $workLocation, $data);
-        $locationLog = $this->attachAttendancePhotos($request, $locationLog);
 
-        unset($data['latitude'], $data['longitude'], $data['work_location_id'], $data['check_in_photo'], $data['check_out_photo']);
+        unset($data['latitude'], $data['longitude'], $data['work_location_id']);
         $data = $this->applyWorkScheduleCalculation($data, $employee);
 
         $attendance = Attendance::create($data);
@@ -137,7 +134,7 @@ class AttendanceController extends Controller
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'attendance_photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'attendance_photo_data' => ['required', 'string'],
         ]);
 
         $today = now()->toDateString();
@@ -164,7 +161,7 @@ class AttendanceController extends Controller
         }
 
         $locationLog = $this->resolveAttendanceLocationLog($employee, $employee->workLocation, $data);
-        $photoPath = $request->file('attendance_photo')->store('attendance-photos', 'public');
+        $photoPath = $this->storeLiveAttendancePhoto($data['attendance_photo_data']);
 
         if (! $attendance) {
             $locationLog['check_in_photo_path'] = $photoPath;
@@ -227,17 +224,14 @@ class AttendanceController extends Controller
             'status' => ['required', Rule::in(array_keys($this->statuses()))],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'check_in_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-            'check_out_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         $data['tenant_id'] = $tenantId;
         $employee = Employee::with(['workLocation', 'workSchedule'])->findOrFail($data['employee_id']);
         $workLocation = WorkLocation::query()->findOrFail($data['work_location_id']);
         $locationLog = $this->resolveAttendanceLocationLog($employee, $workLocation, $data);
-        $locationLog = $this->attachAttendancePhotos($request, $locationLog, $attendance->attendanceLog()->first());
 
-        unset($data['latitude'], $data['longitude'], $data['work_location_id'], $data['check_in_photo'], $data['check_out_photo']);
+        unset($data['latitude'], $data['longitude'], $data['work_location_id']);
         $data = $this->applyWorkScheduleCalculation($data, $employee, $attendance);
 
         $attendance->update($data);
@@ -446,25 +440,29 @@ class AttendanceController extends Controller
         ];
     }
 
-    protected function attachAttendancePhotos(Request $request, array $locationLog, ?AttendanceLog $existingLog = null): array
+    protected function storeLiveAttendancePhoto(string $photoData): string
     {
-        if ($request->hasFile('check_in_photo')) {
-            if ($existingLog?->check_in_photo_path) {
-                Storage::disk('public')->delete($existingLog->check_in_photo_path);
-            }
-
-            $locationLog['check_in_photo_path'] = $request->file('check_in_photo')->store('attendance-photos', 'public');
+        if (! preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,/', $photoData, $matches)) {
+            throw ValidationException::withMessages([
+                'attendance_photo_data' => 'Foto absensi harus diambil langsung dari kamera.',
+            ]);
         }
 
-        if ($request->hasFile('check_out_photo')) {
-            if ($existingLog?->check_out_photo_path) {
-                Storage::disk('public')->delete($existingLog->check_out_photo_path);
-            }
+        $base64Payload = substr($photoData, strpos($photoData, ',') + 1);
+        $binaryPhoto = base64_decode($base64Payload, true);
 
-            $locationLog['check_out_photo_path'] = $request->file('check_out_photo')->store('attendance-photos', 'public');
+        if ($binaryPhoto === false || strlen($binaryPhoto) > 2 * 1024 * 1024) {
+            throw ValidationException::withMessages([
+                'attendance_photo_data' => 'Foto absensi tidak valid atau melebihi 2 MB.',
+            ]);
         }
 
-        return $locationLog;
+        $extension = $matches[1] === 'jpg' ? 'jpeg' : $matches[1];
+        $path = 'attendance-photos/'.now()->format('Y/m').'/'.uniqid('attendance-', true).'.'.$extension;
+
+        Storage::disk('public')->put($path, $binaryPhoto);
+
+        return $path;
     }
 
     protected function applyWorkScheduleCalculation(array $data, Employee $employee, ?Attendance $attendance = null): array
