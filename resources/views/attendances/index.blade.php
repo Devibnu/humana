@@ -596,11 +596,7 @@
 
                 function validateFaceInFrame(canvas) {
                     if (!('FaceDetector' in window)) {
-                        if (cameraStatus) {
-                            cameraStatus.textContent = 'Browser belum mendukung validasi wajah otomatis. Pastikan wajah penuh di dalam garis.';
-                        }
-
-                        return Promise.resolve(true);
+                        return Promise.resolve('Browser ini belum mendukung validasi wajah otomatis. Gunakan Chrome terbaru di HP Android agar foto bisa diperiksa.');
                     }
 
                     var detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 2 });
@@ -638,12 +634,35 @@
 
                         return true;
                     }).catch(function () {
-                        if (cameraStatus) {
-                            cameraStatus.textContent = 'Validasi wajah otomatis belum tersedia. Pastikan wajah penuh di dalam garis.';
-                        }
-
-                        return true;
+                        return 'Validasi wajah otomatis gagal dijalankan. Tutup kamera lalu coba lagi dengan Chrome terbaru.';
                     });
+                }
+
+                function drawPortraitFrame(video, canvas) {
+                    var outputWidth = 720;
+                    var outputHeight = 960;
+                    var videoWidth = video.videoWidth || 960;
+                    var videoHeight = video.videoHeight || 720;
+                    var outputRatio = outputWidth / outputHeight;
+                    var videoRatio = videoWidth / videoHeight;
+                    var sourceX = 0;
+                    var sourceY = 0;
+                    var sourceWidth = videoWidth;
+                    var sourceHeight = videoHeight;
+
+                    if (videoRatio > outputRatio) {
+                        sourceWidth = videoHeight * outputRatio;
+                        sourceX = (videoWidth - sourceWidth) / 2;
+                    } else {
+                        sourceHeight = videoWidth / outputRatio;
+                        sourceY = (videoHeight - sourceHeight) / 2;
+                    }
+
+                    canvas.width = outputWidth;
+                    canvas.height = outputHeight;
+                    canvas
+                        .getContext('2d')
+                        .drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
                 }
 
                 if (captureButton) {
@@ -657,11 +676,7 @@
                             cameraStatus.textContent = 'Memeriksa posisi wajah...';
                         }
 
-                        var width = cameraVideo.videoWidth || 960;
-                        var height = cameraVideo.videoHeight || 720;
-                        cameraCanvas.width = width;
-                        cameraCanvas.height = height;
-                        cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0, width, height);
+                        drawPortraitFrame(cameraVideo, cameraCanvas);
 
                         validateFaceInFrame(cameraCanvas).then(function (result) {
                             if (result !== true) {
