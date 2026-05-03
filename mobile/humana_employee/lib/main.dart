@@ -12,10 +12,107 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String apiBaseUrl = 'https://humana.ibnuapps.cloud/api/mobile';
+const Color _primary = Color(0xFFcb0c9f);
+const Color _ink = Color(0xFF27375F);
+const Color _muted = Color(0xFF8392AB);
+const Color _surface = Colors.white;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const HumanaEmployeeApp());
+}
+
+String _timeValue(dynamic value) {
+  final text = value?.toString();
+  if (text == null || text.isEmpty) {
+    return '--:--';
+  }
+
+  return text.length >= 5 ? text.substring(0, 5) : text;
+}
+
+String _dateLabel(String? value) {
+  if (value == null || value.isEmpty) {
+    return '-';
+  }
+
+  final date = DateTime.tryParse(value);
+  if (date == null) {
+    return value;
+  }
+
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+  ];
+
+  return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+}
+
+String _todayLabel() {
+  const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+  final now = DateTime.now();
+
+  return '${days[now.weekday - 1]}, ${_dateLabel(now.toIso8601String())}';
+}
+
+String _minutesLabel(int minutes) {
+  if (minutes <= 0) {
+    return 'Tepat waktu';
+  }
+
+  final hours = minutes ~/ 60;
+  final rest = minutes % 60;
+  if (hours > 0 && rest > 0) {
+    return '${hours}j ${rest}m';
+  }
+  if (hours > 0) {
+    return '${hours}j';
+  }
+
+  return '${minutes}m';
+}
+
+String _statusLabel(Map<String, dynamic> attendance) {
+  final late = attendance['late_minutes'] as int? ?? 0;
+  final early = attendance['early_leave_minutes'] as int? ?? 0;
+  final status = attendance['status']?.toString();
+
+  if (late > 0) {
+    return 'Telat ${_minutesLabel(late)}';
+  }
+  if (early > 0) {
+    return 'Pulang cepat ${_minutesLabel(early)}';
+  }
+  if (status == 'present') {
+    return 'Hadir';
+  }
+
+  return status?.toUpperCase() ?? '-';
+}
+
+Color _statusColor(Map<String, dynamic> attendance) {
+  final late = attendance['late_minutes'] as int? ?? 0;
+  final early = attendance['early_leave_minutes'] as int? ?? 0;
+
+  if (late > 0) {
+    return const Color(0xFFE85D04);
+  }
+  if (early > 0) {
+    return const Color(0xFFDD2D4A);
+  }
+
+  return const Color(0xFF2DCE89);
 }
 
 class HumanaEmployeeApp extends StatelessWidget {
@@ -31,7 +128,13 @@ class HumanaEmployeeApp extends StatelessWidget {
           seedColor: const Color(0xFFcb0c9f),
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Color(0xFF27375F),
+          elevation: 0,
+          centerTitle: false,
+        ),
         useMaterial3: true,
       ),
       home: const AuthGate(),
@@ -385,31 +488,48 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     final attendance = _status?['today_attendance'] as Map<String, dynamic>?;
     final nextAction = _status?['next_action'] as String?;
     final isComplete = nextAction == 'complete';
+    final presentCount = _history
+        .where(
+          (item) =>
+              (item as Map<String, dynamic>)['status']?.toString() == 'present',
+        )
+        .length;
+    final lateCount = _history
+        .where(
+          (item) =>
+              ((item as Map<String, dynamic>)['late_minutes'] as int? ?? 0) > 0,
+        )
+        .length;
+    final earlyCount = _history
+        .where(
+          (item) =>
+              ((item as Map<String, dynamic>)['early_leave_minutes'] as int? ??
+                  0) >
+              0,
+        )
+        .length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Absensi Karyawan'),
-        actions: [
-          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
-        ],
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                 children: [
-                  _HeroCard(
+                  _HomeHeader(
                     employeeName: employee?['name'] as String? ?? '-',
-                    locationName:
-                        location?['name'] as String? ?? 'Lokasi belum diatur',
-                    scheduleName:
-                        schedule?['name'] as String? ?? 'Jadwal belum diatur',
-                    checkIn: attendance?['check_in'] as String?,
-                    checkOut: attendance?['check_out'] as String?,
-                    nextAction: nextAction,
+                    employeeCode:
+                        employee?['employee_code'] as String? ?? 'Employee',
+                    onRefresh: _refresh,
+                    onLogout: _logout,
+                  ),
+                  const SizedBox(height: 18),
+                  _TodayAttendanceCard(
+                    attendance: attendance,
+                    location: location,
+                    schedule: schedule,
+                    nextAction: nextAction ?? 'check_in',
                     submitting: _submitting,
                     onSubmit: isComplete || _submitting
                         ? null
@@ -419,17 +539,19 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                     const SizedBox(height: 12),
                     _MessageBox(message: _message!),
                   ],
-                  const SizedBox(height: 18),
-                  Text(
-                    'Riwayat Absensi',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                  const SizedBox(height: 14),
+                  _WorkInfoGrid(location: location, schedule: schedule),
+                  const SizedBox(height: 14),
+                  _SummaryStrip(
+                    presentCount: presentCount,
+                    lateCount: lateCount,
+                    earlyCount: earlyCount,
                   ),
-                  const SizedBox(height: 10),
-                  ..._history.map(
-                    (item) =>
-                        _HistoryTile(attendance: item as Map<String, dynamic>),
+                  const SizedBox(height: 22),
+                  _HistorySection(
+                    history: _history
+                        .map((item) => item as Map<String, dynamic>)
+                        .toList(),
                   ),
                 ],
               ),
@@ -677,77 +799,237 @@ class _AttendanceCameraPageState extends State<AttendanceCameraPage> {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
     required this.employeeName,
-    required this.locationName,
-    required this.scheduleName,
-    required this.checkIn,
-    required this.checkOut,
+    required this.employeeCode,
+    required this.onRefresh,
+    required this.onLogout,
+  });
+
+  final String employeeName;
+  final String employeeCode;
+  final VoidCallback onRefresh;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE7F8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.badge_rounded, color: _primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Humana Employee',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: _muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  employeeName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  employeeCode,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          _RoundIconButton(icon: Icons.refresh_rounded, onPressed: onRefresh),
+          const SizedBox(width: 8),
+          _RoundIconButton(icon: Icons.logout_rounded, onPressed: onLogout),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(icon, color: _ink, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayAttendanceCard extends StatelessWidget {
+  const _TodayAttendanceCard({
+    required this.attendance,
+    required this.location,
+    required this.schedule,
     required this.nextAction,
     required this.submitting,
     required this.onSubmit,
   });
 
-  final String employeeName;
-  final String locationName;
-  final String scheduleName;
-  final String? checkIn;
-  final String? checkOut;
-  final String? nextAction;
+  final Map<String, dynamic>? attendance;
+  final Map<String, dynamic>? location;
+  final Map<String, dynamic>? schedule;
+  final String nextAction;
   final bool submitting;
   final VoidCallback? onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    final label = nextAction == 'check_out'
-        ? 'Absen Pulang'
-        : nextAction == 'complete'
+    final isComplete = nextAction == 'complete';
+    final isCheckOut = nextAction == 'check_out';
+    final buttonLabel = isComplete
         ? 'Absensi Lengkap'
+        : isCheckOut
+        ? 'Absen Pulang'
         : 'Absen Masuk';
+    final lateMinutes = attendance?['late_minutes'] as int? ?? 0;
+    final earlyMinutes = attendance?['early_leave_minutes'] as int? ?? 0;
+    final statusText = isComplete
+        ? 'Hari ini sudah selesai'
+        : isCheckOut
+        ? 'Masuk tercatat, lanjut pulang'
+        : 'Siap absen masuk';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(
-          colors: [Color(0xFF15224C), Color(0xFFcb0c9f)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF172B4D), Color(0xFF7B1FA2), Color(0xFFE10098)],
         ),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withValues(alpha: 0.24),
+            blurRadius: 24,
+            offset: const Offset(0, 16),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            employeeName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(locationName, style: const TextStyle(color: Colors.white70)),
-          Text(scheduleName, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
-                child: _TimeBox(title: 'Masuk', value: checkIn ?? '-'),
+                child: Text(
+                  _todayLabel(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _TimeBox(title: 'Pulang', value: checkOut ?? '-'),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  isComplete ? 'Lengkap' : 'Aktif',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
+          Text(
+            statusText,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              height: 1.08,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${location?['name'] ?? 'Lokasi belum diatur'} • ${schedule?['name'] ?? 'Jadwal belum diatur'}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Expanded(
+                child: _TimeBox(
+                  icon: Icons.login_rounded,
+                  title: 'Masuk',
+                  value: _timeValue(attendance?['check_in']),
+                  note: lateMinutes > 0
+                      ? 'Telat ${_minutesLabel(lateMinutes)}'
+                      : 'Check-in',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _TimeBox(
+                  icon: Icons.logout_rounded,
+                  title: 'Pulang',
+                  value: _timeValue(attendance?['check_out']),
+                  note: earlyMinutes > 0
+                      ? 'Cepat ${_minutesLabel(earlyMinutes)}'
+                      : 'Check-out',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF15224C),
+                foregroundColor: _ink,
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.72),
+                disabledForegroundColor: _ink.withValues(alpha: 0.6),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               onPressed: onSubmit,
               icon: submitting
@@ -756,8 +1038,10 @@ class _HeroCard extends StatelessWidget {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.camera_alt),
-              label: Text(submitting ? 'Menyimpan...' : label),
+                  : Icon(
+                      isComplete ? Icons.verified_rounded : Icons.camera_alt,
+                    ),
+              label: Text(submitting ? 'Menyimpan...' : buttonLabel),
             ),
           ),
         ],
@@ -767,10 +1051,17 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _TimeBox extends StatelessWidget {
-  const _TimeBox({required this.title, required this.value});
+  const _TimeBox({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.note,
+  });
 
+  final IconData icon;
   final String title;
   final String value;
+  final String note;
 
   @override
   Widget build(BuildContext context) {
@@ -778,26 +1069,265 @@ class _TimeBox extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(height: 10),
           Text(
             title,
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            note,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkInfoGrid extends StatelessWidget {
+  const _WorkInfoGrid({required this.location, required this.schedule});
+
+  final Map<String, dynamic>? location;
+  final Map<String, dynamic>? schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _InfoCard(
+            icon: Icons.place_rounded,
+            title: 'Lokasi',
+            value: location?['name']?.toString() ?? '-',
+            subtitle: 'Radius ${location?['radius']?.toString() ?? '-'} m',
+            color: const Color(0xFF11CDEF),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _InfoCard(
+            icon: Icons.schedule_rounded,
+            title: 'Jadwal',
+            value: schedule?['name']?.toString() ?? '-',
+            subtitle:
+                '${_timeValue(schedule?['check_in_time'])} - ${_timeValue(schedule?['check_out_time'])}',
+            color: const Color(0xFFFB6340),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _muted, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({
+    required this.presentCount,
+    required this.lateCount,
+    required this.earlyCount,
+  });
+
+  final int presentCount;
+  final int lateCount;
+  final int earlyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryItem(
+              label: 'Hadir',
+              value: presentCount.toString(),
+              color: const Color(0xFF2DCE89),
+            ),
+          ),
+          Expanded(
+            child: _SummaryItem(
+              label: 'Telat',
+              value: lateCount.toString(),
+              color: const Color(0xFFE85D04),
+            ),
+          ),
+          Expanded(
+            child: _SummaryItem(
+              label: 'Cepat',
+              value: earlyCount.toString(),
+              color: const Color(0xFFDD2D4A),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            color: _muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistorySection extends StatelessWidget {
+  const _HistorySection({required this.history});
+
+  final List<Map<String, dynamic>> history;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Riwayat Absensi',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: _ink,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '${history.length} data',
+              style: const TextStyle(
+                color: _muted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (history.isEmpty)
+          const _EmptyHistory()
+        else
+          ...history.map((attendance) => _HistoryTile(attendance: attendance)),
+      ],
     );
   }
 }
@@ -809,16 +1339,104 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = attendance['status'] as String? ?? '-';
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        title: Text(attendance['date'] as String? ?? '-'),
-        subtitle: Text(
-          'Masuk ${attendance['check_in'] ?? '-'} | Pulang ${attendance['check_out'] ?? '-'}',
-        ),
-        trailing: Chip(label: Text(status.toUpperCase())),
+    final color = _statusColor(attendance);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.event_available_rounded, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dateLabel(attendance['date'] as String?),
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${_timeValue(attendance['check_in'])} masuk • ${_timeValue(attendance['check_out'])} pulang',
+                  style: const TextStyle(color: _muted, fontSize: 13),
+                ),
+                if (attendance['distance_meters'] != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Jarak ${attendance['distance_meters']} m',
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              _statusLabel(attendance),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyHistory extends StatelessWidget {
+  const _EmptyHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.event_busy_rounded, color: _muted, size: 36),
+          SizedBox(height: 10),
+          Text(
+            'Belum ada riwayat absensi',
+            style: TextStyle(color: _ink, fontWeight: FontWeight.w800),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Data akan tampil setelah Anda absen.',
+            style: TextStyle(color: _muted),
+          ),
+        ],
       ),
     );
   }
