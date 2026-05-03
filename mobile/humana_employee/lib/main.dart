@@ -115,6 +115,40 @@ Color _statusColor(Map<String, dynamic> attendance) {
   return const Color(0xFF2DCE89);
 }
 
+double _moneyNumber(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String _rupiah(dynamic value) {
+  final amount = _moneyNumber(value).round().toString();
+  final buffer = StringBuffer();
+
+  for (var i = 0; i < amount.length; i++) {
+    final position = amount.length - i;
+    buffer.write(amount[i]);
+    if (position > 1 && position % 3 == 1) {
+      buffer.write('.');
+    }
+  }
+
+  return 'Rp ${buffer.toString()}';
+}
+
+String _periodLabel(Map<String, dynamic> payslip) {
+  final start = _dateLabel(payslip['period_start'] as String?);
+  final end = _dateLabel(payslip['period_end'] as String?);
+
+  if (start == '-' && end == '-') {
+    return '-';
+  }
+
+  return '$start - $end';
+}
+
 class HumanaEmployeeApp extends StatelessWidget {
   const HumanaEmployeeApp({super.key});
 
@@ -188,9 +222,77 @@ class _AuthGateState extends State<AuthGate> {
       return LoginPage(onLoggedIn: _setToken);
     }
 
-    return AttendanceHomePage(
+    return EmployeeMobileShell(
       token: _token!,
       onLoggedOut: () => _setToken(null),
+    );
+  }
+}
+
+class EmployeeMobileShell extends StatefulWidget {
+  const EmployeeMobileShell({
+    super.key,
+    required this.token,
+    required this.onLoggedOut,
+  });
+
+  final String token;
+  final VoidCallback onLoggedOut;
+
+  @override
+  State<EmployeeMobileShell> createState() => _EmployeeMobileShellState();
+}
+
+class _EmployeeMobileShellState extends State<EmployeeMobileShell> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      AttendanceHomePage(token: widget.token, onLoggedOut: widget.onLoggedOut),
+      const OvertimePage(),
+      const LeaveRequestPage(),
+      PayslipPage(token: widget.token, onLoggedOut: widget.onLoggedOut),
+      ProfilePage(onLoggedOut: widget.onLoggedOut),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: _selectedIndex, children: pages),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) =>
+            setState(() => _selectedIndex = index),
+        height: 72,
+        backgroundColor: _surface,
+        indicatorColor: const Color(0xFFFFE7F8),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.event_available_outlined),
+            selectedIcon: Icon(Icons.event_available_rounded),
+            label: 'Absensi',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.more_time_outlined),
+            selectedIcon: Icon(Icons.more_time_rounded),
+            label: 'Lembur',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.beach_access_outlined),
+            selectedIcon: Icon(Icons.beach_access_rounded),
+            label: 'Cuti',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long_rounded),
+            label: 'Gaji',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profil',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -556,6 +658,1068 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class OvertimePage extends StatelessWidget {
+  const OvertimePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _MobilePageScaffold(
+      title: 'Pengajuan Lembur',
+      subtitle: 'Ajukan lembur langsung dari mobile.',
+      icon: Icons.more_time_rounded,
+      child: Column(
+        children: [
+          _FeatureHeroCard(
+            title: 'Lembur Hari Ini',
+            value: 'Belum ada pengajuan',
+            subtitle: 'Gunakan form di bawah untuk membuat pengajuan baru.',
+            icon: Icons.assignment_turned_in_rounded,
+            color: const Color(0xFF5E72E4),
+          ),
+          const SizedBox(height: 16),
+          _FormCard(
+            title: 'Ajukan Lembur',
+            children: [
+              const _ReadonlyField(label: 'Karyawan', value: 'Raka Pratama'),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(
+                    child: _ReadonlyField(label: 'Mulai', value: '17:00'),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _ReadonlyField(label: 'Selesai', value: '19:00'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _ReadonlyField(
+                label: 'Alasan',
+                value: 'Contoh: menyelesaikan pekerjaan operasional.',
+                minLines: 2,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Tampilan lembur sudah siap. Submit API mobile kita sambungkan setelah desain disetujui.',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.send_rounded),
+                  label: const Text('Ajukan Lembur'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const _StatusListCard(
+            title: 'Riwayat Lembur',
+            emptyText: 'Belum ada riwayat lembur dari aplikasi mobile.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LeaveRequestPage extends StatelessWidget {
+  const LeaveRequestPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _MobilePageScaffold(
+      title: 'Cuti / Izin',
+      subtitle: 'Pengajuan izin, sakit, dan cuti.',
+      icon: Icons.beach_access_rounded,
+      child: Column(
+        children: [
+          const _FeatureHeroCard(
+            title: 'Saldo Cuti',
+            value: '12 hari',
+            subtitle: 'Estimasi saldo tahun berjalan.',
+            icon: Icons.calendar_month_rounded,
+            color: Color(0xFF2DCE89),
+          ),
+          const SizedBox(height: 16),
+          _FormCard(
+            title: 'Ajukan Cuti / Izin',
+            children: [
+              const _ReadonlyField(label: 'Jenis', value: 'Cuti Tahunan'),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(
+                    child: _ReadonlyField(
+                      label: 'Mulai',
+                      value: 'Pilih tanggal',
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _ReadonlyField(
+                      label: 'Selesai',
+                      value: 'Pilih tanggal',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _ReadonlyField(
+                label: 'Keterangan',
+                value: 'Contoh: keperluan keluarga.',
+                minLines: 2,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Tampilan cuti sudah siap. Submit API mobile kita sambungkan setelah desain disetujui.',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Buat Pengajuan'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const _StatusListCard(
+            title: 'Riwayat Cuti / Izin',
+            emptyText: 'Belum ada riwayat cuti dari aplikasi mobile.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PayslipPage extends StatefulWidget {
+  const PayslipPage({
+    super.key,
+    required this.token,
+    required this.onLoggedOut,
+  });
+
+  final String token;
+  final VoidCallback onLoggedOut;
+
+  @override
+  State<PayslipPage> createState() => _PayslipPageState();
+}
+
+class _PayslipPageState extends State<PayslipPage> {
+  bool _loading = true;
+  String? _message;
+  List<Map<String, dynamic>> _payslips = [];
+  Map<String, dynamic>? _summary;
+
+  Map<String, String> get _headers => {
+    'Accept': 'application/json',
+    'Authorization': 'Bearer ${widget.token}',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/payslips'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 401) {
+        widget.onLoggedOut();
+        return;
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400) {
+        throw ApiException.fromPayload(payload);
+      }
+
+      final data = (payload['data'] as List? ?? [])
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _payslips = data;
+        _summary = payload['summary'] as Map<String, dynamic>?;
+        _message = null;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _message = error.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _showPayslipDetail(Map<String, dynamic> payslip) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PayslipDetailSheet(payslip: payslip),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = _payslips.isNotEmpty ? _payslips.first : null;
+
+    return _MobilePageScaffold(
+      title: 'Slip Gaji',
+      subtitle: 'Ringkasan payroll pribadi.',
+      icon: Icons.receipt_long_rounded,
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.only(top: 80),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : Column(
+              children: [
+                _FeatureHeroCard(
+                  title: 'Take Home Pay Terakhir',
+                  value: latest == null
+                      ? 'Belum ada slip'
+                      : _rupiah(latest['net_salary']),
+                  subtitle: latest == null
+                      ? 'Slip gaji akan tampil saat payroll dibuat.'
+                      : _periodLabel(latest),
+                  icon: Icons.payments_rounded,
+                  color: const Color(0xFF344767),
+                ),
+                if (_message != null) ...[
+                  const SizedBox(height: 12),
+                  _MessageBox(message: _message!),
+                ],
+                const SizedBox(height: 14),
+                _PayslipSummaryCard(
+                  total: (_summary?['total'] as int?) ?? _payslips.length,
+                  latestNetSalary: _summary?['latest_net_salary'],
+                ),
+                const SizedBox(height: 18),
+                _PayslipListSection(
+                  payslips: _payslips,
+                  onTap: _showPayslipDetail,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _PayslipSummaryCard extends StatelessWidget {
+  const _PayslipSummaryCard({
+    required this.total,
+    required this.latestNetSalary,
+  });
+
+  final int total;
+  final dynamic latestNetSalary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PayslipMetric(
+              label: 'Total Slip',
+              value: '$total',
+              icon: Icons.folder_copy_rounded,
+              color: const Color(0xFF11CDEF),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _PayslipMetric(
+              label: 'Terakhir',
+              value: _rupiah(latestNetSalary),
+              icon: Icons.account_balance_wallet_rounded,
+              color: const Color(0xFF2DCE89),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayslipMetric extends StatelessWidget {
+  const _PayslipMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayslipListSection extends StatelessWidget {
+  const _PayslipListSection({required this.payslips, required this.onTap});
+
+  final List<Map<String, dynamic>> payslips;
+  final ValueChanged<Map<String, dynamic>> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (payslips.isEmpty) {
+      return const _StatusListCard(
+        title: 'Riwayat Slip Gaji',
+        emptyText: 'Belum ada slip gaji untuk akun ini.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Riwayat Slip Gaji',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '${payslips.length} data',
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...payslips.map(
+          (payslip) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _PayslipTile(payslip: payslip, onTap: () => onTap(payslip)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayslipTile extends StatelessWidget {
+  const _PayslipTile({required this.payslip, required this.onTap});
+
+  final Map<String, dynamic> payslip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final allowances = payslip['allowances'] as Map<String, dynamic>? ?? {};
+    final deductions = payslip['deductions'] as Map<String, dynamic>? ?? {};
+
+    return Material(
+      color: _surface,
+      borderRadius: BorderRadius.circular(26),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(26),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: const Color(0xFFE9ECEF)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE7F8),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.receipt_rounded, color: _primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _periodLabel(payslip),
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Tunjangan ${_rupiah(allowances['total'])} • Potongan ${_rupiah(deductions['total'])}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Net', style: TextStyle(color: _muted)),
+                  Text(
+                    _rupiah(payslip['net_salary']),
+                    style: const TextStyle(
+                      color: _ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PayslipDetailSheet extends StatelessWidget {
+  const _PayslipDetailSheet({required this.payslip});
+
+  final Map<String, dynamic> payslip;
+
+  @override
+  Widget build(BuildContext context) {
+    final allowances = payslip['allowances'] as Map<String, dynamic>? ?? {};
+    final deductions = payslip['deductions'] as Map<String, dynamic>? ?? {};
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.45,
+      maxChildSize: 0.92,
+      builder: (context, controller) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+        decoration: const BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: ListView(
+          controller: controller,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE9ECEF),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              _periodLabel(payslip),
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Detail komponen slip gaji',
+              style: TextStyle(color: _muted),
+            ),
+            const SizedBox(height: 18),
+            _PayslipAmountRow(
+              label: 'Gaji Pokok',
+              value: _rupiah(payslip['base_salary']),
+              strong: true,
+            ),
+            const Divider(height: 26),
+            const _PayslipGroupTitle('Tunjangan'),
+            _PayslipAmountRow(
+              label: 'Transport',
+              value: _rupiah(allowances['transport']),
+            ),
+            _PayslipAmountRow(
+              label: 'Makan',
+              value: _rupiah(allowances['meal']),
+            ),
+            _PayslipAmountRow(
+              label: 'Kesehatan',
+              value: _rupiah(allowances['health']),
+            ),
+            _PayslipAmountRow(
+              label: 'Lembur',
+              value: _rupiah(allowances['overtime']),
+            ),
+            _PayslipAmountRow(
+              label: 'Total Tunjangan',
+              value: _rupiah(allowances['total']),
+              strong: true,
+            ),
+            const Divider(height: 26),
+            const _PayslipGroupTitle('Potongan'),
+            _PayslipAmountRow(
+              label: 'Pajak',
+              value: _rupiah(deductions['tax']),
+            ),
+            _PayslipAmountRow(
+              label: 'BPJS',
+              value: _rupiah(deductions['bpjs']),
+            ),
+            _PayslipAmountRow(
+              label: 'Pinjaman',
+              value: _rupiah(deductions['loan']),
+            ),
+            _PayslipAmountRow(
+              label: 'Absensi',
+              value: _rupiah(deductions['attendance']),
+            ),
+            _PayslipAmountRow(
+              label: 'Total Potongan',
+              value: _rupiah(deductions['total']),
+              strong: true,
+            ),
+            const Divider(height: 26),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2DCE89).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: _PayslipAmountRow(
+                label: 'Take Home Pay',
+                value: _rupiah(payslip['net_salary']),
+                strong: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PayslipGroupTitle extends StatelessWidget {
+  const _PayslipGroupTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: _ink,
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _PayslipAmountRow extends StatelessWidget {
+  const _PayslipAmountRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
+
+  final String label;
+  final String value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: strong ? _ink : _muted,
+                fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: _ink,
+              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key, required this.onLoggedOut});
+
+  final VoidCallback onLoggedOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return _MobilePageScaffold(
+      title: 'Profil',
+      subtitle: 'Akun dan preferensi aplikasi.',
+      icon: Icons.person_rounded,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: const Color(0xFFE9ECEF)),
+            ),
+            child: const Column(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: Color(0xFFFFE7F8),
+                  child: Icon(Icons.person_rounded, color: _primary, size: 42),
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'Raka Pratama',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'raka.pratama@humana.test',
+                  style: TextStyle(color: _muted),
+                ),
+                SizedBox(height: 3),
+                Text('EMP-1002 • Office', style: TextStyle(color: _muted)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _ProfileActionTile(
+            icon: Icons.lock_outline_rounded,
+            title: 'Keamanan Akun',
+            subtitle: 'Password dan sesi perangkat',
+            onTap: () {},
+          ),
+          const SizedBox(height: 10),
+          _ProfileActionTile(
+            icon: Icons.notifications_none_rounded,
+            title: 'Notifikasi',
+            subtitle: 'Pengingat absensi dan approval',
+            onTap: () {},
+          ),
+          const SizedBox(height: 10),
+          _ProfileActionTile(
+            icon: Icons.logout_rounded,
+            title: 'Keluar',
+            subtitle: 'Logout dari aplikasi mobile',
+            onTap: onLoggedOut,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobilePageScaffold extends StatelessWidget {
+  const _MobilePageScaffold({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE7F8),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(icon, color: _primary, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(color: _ink, fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(subtitle, style: const TextStyle(color: _muted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureHeroCard extends StatelessWidget {
+  const _FeatureHeroCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(subtitle, style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormCard extends StatelessWidget {
+  const _FormCard({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadonlyField extends StatelessWidget {
+  const _ReadonlyField({
+    required this.label,
+    required this.value,
+    this.minLines = 1,
+  });
+
+  final String label;
+  final String value;
+  final int minLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: value,
+      readOnly: true,
+      minLines: minLines,
+      maxLines: minLines,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: const Color(0xFFF8F9FA),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusListCard extends StatelessWidget {
+  const _StatusListCard({required this.title, required this.emptyText});
+
+  final String title;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(Icons.inbox_rounded, color: _muted),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  emptyText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileActionTile extends StatelessWidget {
+  const _ProfileActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _surface,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE7F8),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: _primary, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(subtitle, style: const TextStyle(color: _muted)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: _muted),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

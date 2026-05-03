@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileAttendanceController;
+use App\Http\Controllers\Api\MobilePayslipController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,5 +30,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('attendances/status', [MobileAttendanceController::class, 'status']);
         Route::get('attendances/history', [MobileAttendanceController::class, 'history']);
         Route::post('attendances/submit', [MobileAttendanceController::class, 'submit']);
+        Route::get('payslips', [MobilePayslipController::class, 'index']);
+        Route::get('payslips/{payroll}', [MobilePayslipController::class, 'show']);
     });
 });
