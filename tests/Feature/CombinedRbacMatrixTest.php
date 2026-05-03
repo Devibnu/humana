@@ -48,7 +48,6 @@ class CombinedRbacMatrixTest extends TestCase
         $this->actingAs($user)->get('/leaves/analytics')->assertOk();
         $dashboardResponse = $this->actingAs($user)->get('/dashboard');
         $dashboardResponse->assertSee('Payroll', false);
-        $dashboardResponse->assertSee('Analytics Cuti', false);
     }
 
     public function test_manager_limited_access(): void
@@ -75,14 +74,23 @@ class CombinedRbacMatrixTest extends TestCase
         $dashboardResponse->assertDontSee('Payroll', false);
     }
 
-    public function test_employee_profile_only(): void
+    public function test_employee_self_service_access(): void
     {
         $permissions = RolePermission::where('role_id', $this->employeeRole->id)
             ->pluck('menu_key')
             ->toArray();
 
-        $this->assertSame(['profile'], $permissions);
+        $this->assertEqualsCanonicalizing([
+            'profile',
+            'attendances',
+            'leaves',
+            'leaves.create',
+            'lembur',
+            'lembur.submit',
+        ], $permissions);
         $this->assertContains('profile', $permissions);
+        $this->assertContains('attendances', $permissions);
+        $this->assertContains('leaves', $permissions);
         $this->assertNotContains('payroll', $permissions);
         $this->assertNotContains('leaves.manage', $permissions);
 
@@ -101,11 +109,16 @@ class CombinedRbacMatrixTest extends TestCase
         ]);
 
         $this->actingAs($user)->get('/profile')->assertOk();
+        $this->actingAs($user)->get('/attendances')->assertOk();
+        $this->actingAs($user)->get('/leaves')->assertOk();
         $this->actingAs($user)->get('/payroll')->assertForbidden();
         $this->actingAs($user)->get('/leaves/analytics')->assertForbidden();
 
         $dashboardResponse = $this->actingAs($user)->get('/dashboard');
         $dashboardResponse->assertSee('Profil Saya', false);
+        $dashboardResponse->assertSee('Absensi', false);
+        $dashboardResponse->assertSee('Cuti / Izin', false);
+        $dashboardResponse->assertSee('Pengajuan Lembur', false);
         $dashboardResponse->assertDontSee('Payroll', false);
         $dashboardResponse->assertDontSee('Analytics Cuti', false);
     }

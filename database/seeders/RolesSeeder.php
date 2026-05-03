@@ -33,7 +33,7 @@ class RolesSeeder extends Seeder
             [
                 'name' => 'Employee',
                 'description' => 'Akses terbatas',
-                'permissions' => ['profile', 'lembur', 'lembur.submit'],
+                'permissions' => ['profile', 'attendances', 'leaves', 'leaves.create', 'lembur', 'lembur.submit'],
             ],
         ];
 

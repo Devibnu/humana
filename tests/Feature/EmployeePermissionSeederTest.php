@@ -29,10 +29,19 @@ class EmployeePermissionSeederTest extends TestCase
             ->pluck('menu_key')
             ->toArray();
 
-        $this->assertSame(['profile'], $permissions);
+        $this->assertEqualsCanonicalizing([
+            'profile',
+            'attendances',
+            'leaves',
+            'leaves.create',
+            'lembur',
+            'lembur.submit',
+        ], $permissions);
         $this->assertContains('profile', $permissions);
-        $this->assertNotContains('attendances', $permissions);
-        $this->assertNotContains('leaves', $permissions);
+        $this->assertContains('attendances', $permissions);
+        $this->assertContains('leaves', $permissions);
+        $this->assertContains('leaves.create', $permissions);
+        $this->assertContains('lembur.submit', $permissions);
         $this->assertNotContains('payroll', $permissions);
         $this->assertNotContains('payroll.manage', $permissions);
         $this->assertNotContains('leaves.manage', $permissions);
@@ -87,8 +96,9 @@ class EmployeePermissionSeederTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Profil Saya', false);
-        $response->assertDontSee('Absensi', false);
-        $response->assertDontSee('Cuti / Izin', false);
+        $response->assertSee('Absensi', false);
+        $response->assertSee('Cuti / Izin', false);
+        $response->assertSee('Pengajuan Lembur', false);
         $response->assertDontSee('Payroll', false);
         $response->assertDontSee('Analytics Cuti', false);
     }

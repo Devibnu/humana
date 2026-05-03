@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Employee;
 use Database\Seeders\RolesTableSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -62,9 +63,9 @@ class RolesRbacTest extends TestCase
         $dashboardResponse->assertSee('Pengguna');
         $dashboardResponse->assertSee('Karyawan');
         $dashboardResponse->assertSee('Absensi');
-        $dashboardResponse->assertDontSee('Tenant');
-        $dashboardResponse->assertDontSee('Role');
-        $dashboardResponse->assertDontSee('Payroll');
+        $dashboardResponse->assertDontSee('data-testid="sidebar-menu-tenants"', false);
+        $dashboardResponse->assertDontSee('data-testid="sidebar-menu-roles"', false);
+        $dashboardResponse->assertDontSee('data-testid="sidebar-menu-payroll"', false);
     }
 
     public function test_employee_with_role_id_remains_limited_to_employee_access_even_if_legacy_role_string_is_wrong(): void
@@ -72,12 +73,22 @@ class RolesRbacTest extends TestCase
         $tenant = $this->makeTenant('roles-rbac-employee');
         $employee = $this->makeUserFromRoleId('Employee', $tenant, 'roles-rbac-employee@example.test');
 
+        Employee::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $employee->id,
+            'employee_code' => 'RBAC-EMP-001',
+            'name' => $employee->name,
+            'email' => $employee->email,
+            'status' => 'active',
+        ]);
+
         DB::table('users')->where('id', $employee->id)->update(['role' => 'admin_hr']);
         $employee->refresh();
 
         $this->actingAs($employee)->get(route('profile'))->assertOk();
         $this->actingAs($employee)->get(route('user-profile.index'))->assertOk();
-        $this->actingAs($employee)->get(route('attendances.index'))->assertForbidden();
+        $this->actingAs($employee)->get(route('attendances.index'))->assertOk();
+        $this->actingAs($employee)->get(route('leaves.index'))->assertOk();
         $this->actingAs($employee)->get(route('users.index'))->assertForbidden();
         $this->actingAs($employee)->get(route('employees.index'))->assertForbidden();
 
@@ -85,11 +96,12 @@ class RolesRbacTest extends TestCase
 
         $dashboardResponse->assertOk();
         $dashboardResponse->assertSee('Profil Saya');
-        $dashboardResponse->assertDontSee('Absensi');
-        $dashboardResponse->assertDontSee('Cuti / Izin');
+        $dashboardResponse->assertSee('Absensi');
+        $dashboardResponse->assertSee('Cuti / Izin');
+        $dashboardResponse->assertSee('Pengajuan Lembur');
         $dashboardResponse->assertDontSee('Data Master');
         $dashboardResponse->assertDontSee('Pengguna');
-        $dashboardResponse->assertDontSee('Tenant');
+        $dashboardResponse->assertDontSee('data-testid="sidebar-menu-tenants"', false);
     }
 
     protected function makeTenant(string $slug): Tenant

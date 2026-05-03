@@ -175,6 +175,7 @@ class RolesController extends Controller
     protected function menuGroups(): array
     {
         $groups = [
+            'account' => 'Akun',
             'master' => 'Data Master',
             'operational' => 'Modul Operasional',
         ];

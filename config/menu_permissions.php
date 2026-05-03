@@ -221,6 +221,9 @@ return [
         ],
         'employee' => [
             'profile',
+            'attendances',
+            'leaves',
+            'leaves.create',
             'lembur',
             'lembur.submit',
         ],
