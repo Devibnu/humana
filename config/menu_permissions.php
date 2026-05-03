@@ -132,6 +132,11 @@ return [
             'description' => 'Lihat laporan payroll',
             'group' => 'operational',
         ],
+        'payroll.slips' => [
+            'label' => 'Slip Gaji Saya',
+            'description' => 'Lihat slip gaji milik karyawan yang sedang login',
+            'group' => 'operational',
+        ],
         'lembur' => [
             'label' => 'Lembur',
             'description' => 'Akses modul lembur',
@@ -193,6 +198,7 @@ return [
             'payroll',
             'payroll.manage',
             'payroll.reports',
+            'payroll.slips',
             'reports',
         ],
         'manager' => [
@@ -226,6 +232,7 @@ return [
             'leaves.create',
             'lembur',
             'lembur.submit',
+            'payroll.slips',
         ],
     ],
 ];

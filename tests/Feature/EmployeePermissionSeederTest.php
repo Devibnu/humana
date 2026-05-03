@@ -36,12 +36,14 @@ class EmployeePermissionSeederTest extends TestCase
             'leaves.create',
             'lembur',
             'lembur.submit',
+            'payroll.slips',
         ], $permissions);
         $this->assertContains('profile', $permissions);
         $this->assertContains('attendances', $permissions);
         $this->assertContains('leaves', $permissions);
         $this->assertContains('leaves.create', $permissions);
         $this->assertContains('lembur.submit', $permissions);
+        $this->assertContains('payroll.slips', $permissions);
         $this->assertNotContains('payroll', $permissions);
         $this->assertNotContains('payroll.manage', $permissions);
         $this->assertNotContains('leaves.manage', $permissions);
@@ -99,7 +101,8 @@ class EmployeePermissionSeederTest extends TestCase
         $response->assertSee('Absensi', false);
         $response->assertSee('Cuti / Izin', false);
         $response->assertSee('Pengajuan Lembur', false);
-        $response->assertDontSee('Payroll', false);
+        $response->assertSee('Slip Gaji Saya', false);
+        $response->assertDontSee('data-testid="sidebar-menu-payroll"', false);
         $response->assertDontSee('Analytics Cuti', false);
     }
 }

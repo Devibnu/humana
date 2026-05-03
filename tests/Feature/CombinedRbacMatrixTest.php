@@ -87,10 +87,12 @@ class CombinedRbacMatrixTest extends TestCase
             'leaves.create',
             'lembur',
             'lembur.submit',
+            'payroll.slips',
         ], $permissions);
         $this->assertContains('profile', $permissions);
         $this->assertContains('attendances', $permissions);
         $this->assertContains('leaves', $permissions);
+        $this->assertContains('payroll.slips', $permissions);
         $this->assertNotContains('payroll', $permissions);
         $this->assertNotContains('leaves.manage', $permissions);
 
@@ -111,6 +113,7 @@ class CombinedRbacMatrixTest extends TestCase
         $this->actingAs($user)->get('/profile')->assertOk();
         $this->actingAs($user)->get('/attendances')->assertOk();
         $this->actingAs($user)->get('/leaves')->assertOk();
+        $this->actingAs($user)->get('/my-payslips')->assertOk();
         $this->actingAs($user)->get('/payroll')->assertForbidden();
         $this->actingAs($user)->get('/leaves/analytics')->assertForbidden();
 
@@ -119,7 +122,8 @@ class CombinedRbacMatrixTest extends TestCase
         $dashboardResponse->assertSee('Absensi', false);
         $dashboardResponse->assertSee('Cuti / Izin', false);
         $dashboardResponse->assertSee('Pengajuan Lembur', false);
-        $dashboardResponse->assertDontSee('Payroll', false);
+        $dashboardResponse->assertSee('Slip Gaji Saya', false);
+        $dashboardResponse->assertDontSee('data-testid="sidebar-menu-payroll"', false);
         $dashboardResponse->assertDontSee('Analytics Cuti', false);
     }
 }

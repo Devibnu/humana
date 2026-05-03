@@ -2,18 +2,22 @@
 
 @section('content')
 
+@php($isSelfPayslip = $isSelfPayslip ?? false)
+
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
             <div class="card mx-4 shadow-xs">
                 <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <h5 class="mb-1">Detail Payroll</h5>
+                        <h5 class="mb-1">{{ $isSelfPayslip ? 'Detail Slip Gaji' : 'Detail Payroll' }}</h5>
                         <p class="text-sm text-secondary mb-0">Informasi payroll untuk {{ $payroll->employee?->name ?? 'karyawan' }}.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="{{ route('payroll.edit', $payroll) }}" class="btn bg-gradient-warning btn-sm mb-0"><i class="fas fa-edit me-1"></i> Edit</a>
-                        <a href="{{ route('payroll.index') }}" class="btn btn-light btn-sm mb-0"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                        @unless($isSelfPayslip)
+                            <a href="{{ route('payroll.edit', $payroll) }}" class="btn bg-gradient-warning btn-sm mb-0"><i class="fas fa-edit me-1"></i> Edit</a>
+                        @endunless
+                        <a href="{{ $isSelfPayslip ? route('my-payslips.index') : route('payroll.index') }}" class="btn btn-light btn-sm mb-0"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
                     </div>
                 </div>
                 <div class="card-body">

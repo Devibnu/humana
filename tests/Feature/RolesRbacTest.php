@@ -89,6 +89,7 @@ class RolesRbacTest extends TestCase
         $this->actingAs($employee)->get(route('user-profile.index'))->assertOk();
         $this->actingAs($employee)->get(route('attendances.index'))->assertOk();
         $this->actingAs($employee)->get(route('leaves.index'))->assertOk();
+        $this->actingAs($employee)->get(route('my-payslips.index'))->assertOk();
         $this->actingAs($employee)->get(route('users.index'))->assertForbidden();
         $this->actingAs($employee)->get(route('employees.index'))->assertForbidden();
 
@@ -99,6 +100,7 @@ class RolesRbacTest extends TestCase
         $dashboardResponse->assertSee('Absensi');
         $dashboardResponse->assertSee('Cuti / Izin');
         $dashboardResponse->assertSee('Pengajuan Lembur');
+        $dashboardResponse->assertSee('Slip Gaji Saya');
         $dashboardResponse->assertDontSee('Data Master');
         $dashboardResponse->assertDontSee('Pengguna');
         $dashboardResponse->assertDontSee('data-testid="sidebar-menu-tenants"', false);

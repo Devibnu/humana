@@ -13,6 +13,7 @@ return new class extends Migration
         'leaves.create',
         'lembur',
         'lembur.submit',
+        'payroll.slips',
     ];
 
     public function up(): void
@@ -61,7 +62,7 @@ return new class extends Migration
 
         DB::table('role_permissions')
             ->where('role_id', $employeeRoleId)
-            ->whereIn('menu_key', ['attendances', 'leaves', 'leaves.create'])
+            ->whereIn('menu_key', ['attendances', 'leaves', 'leaves.create', 'payroll.slips'])
             ->delete();
     }
 };

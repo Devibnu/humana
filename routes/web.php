@@ -23,6 +23,7 @@ use App\Http\Controllers\LeavesAnomalyController;
 use App\Http\Controllers\LeavesAnomalyExportController;
 use App\Http\Controllers\LeavesAnomalyResolutionController;
 use App\Http\Controllers\LeavesAnomalyResolutionExportController;
+use App\Http\Controllers\MyPayslipController;
 use App\Http\Controllers\OwnerTenantController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PayrollReportController;
@@ -70,6 +71,8 @@ Route::group(['middleware' => 'auth'], function () {
 	Route::get('payroll', [PayrollController::class, 'index'])->middleware('menu_access:payroll')->name('payroll.index');
 	Route::get('payroll/reports', [PayrollReportController::class, 'index'])->middleware('menu_access:payroll.reports')->name('payroll.reports');
 	Route::get('payroll/reports/export/{format}', [PayrollReportController::class, 'export'])->middleware('menu_access:payroll.reports')->whereIn('format', ['xlsx', 'pdf'])->name('payroll.reports.export');
+	Route::get('my-payslips', [MyPayslipController::class, 'index'])->middleware('menu_access:payroll.slips')->name('my-payslips.index');
+	Route::get('my-payslips/{payroll}', [MyPayslipController::class, 'show'])->middleware('menu_access:payroll.slips')->name('my-payslips.show');
 	Route::get('payroll/create', [PayrollController::class, 'create'])->middleware('menu_access:payroll')->name('payroll.create');
 	Route::post('payroll', [PayrollController::class, 'store'])->middleware('menu_access:payroll')->name('payroll.store');
 	Route::get('payroll/{payroll}', [PayrollController::class, 'show'])->middleware('menu_access:payroll')->name('payroll.show');

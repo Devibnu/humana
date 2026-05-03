@@ -18,7 +18,7 @@ class RolesSeeder extends Seeder
             [
                 'name' => 'Admin HR',
                 'description' => 'Hak penuh akses',
-                'permissions' => ['profile', 'users', 'users.manage', 'employees', 'employees.destroy', 'employee_levels', 'work_schedules', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'attendances', 'attendances.manage', 'attendances.destroy', 'leaves', 'leaves.create', 'leaves.manage', 'leaves.destroy', 'leaves.analytics', 'leaves.reports', 'leaves.approval.hr', 'lembur', 'lembur.submit', 'lembur.approval', 'lembur.reports', 'payroll', 'payroll.manage', 'payroll.reports', 'reports'],
+                'permissions' => ['profile', 'users', 'users.manage', 'employees', 'employees.destroy', 'employee_levels', 'work_schedules', 'departments', 'positions', 'work_locations', 'tenants', 'roles', 'attendances', 'attendances.manage', 'attendances.destroy', 'leaves', 'leaves.create', 'leaves.manage', 'leaves.destroy', 'leaves.analytics', 'leaves.reports', 'leaves.approval.hr', 'lembur', 'lembur.submit', 'lembur.approval', 'lembur.reports', 'payroll', 'payroll.manage', 'payroll.reports', 'payroll.slips', 'reports'],
             ],
             [
                 'name' => 'Supervisor',
@@ -33,7 +33,7 @@ class RolesSeeder extends Seeder
             [
                 'name' => 'Employee',
                 'description' => 'Akses terbatas',
-                'permissions' => ['profile', 'attendances', 'leaves', 'leaves.create', 'lembur', 'lembur.submit'],
+                'permissions' => ['profile', 'attendances', 'leaves', 'leaves.create', 'lembur', 'lembur.submit', 'payroll.slips'],
             ],
         ];
 

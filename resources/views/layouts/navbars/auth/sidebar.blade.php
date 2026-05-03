@@ -286,7 +286,7 @@
       </li>
       @endif
 
-      @if ($currentUser->hasMenuAccess('payroll') || $currentUser->hasMenuAccess('payroll.reports'))
+      @if ($currentUser->hasMenuAccess('payroll') || $currentUser->hasMenuAccess('payroll.reports') || $currentUser->hasMenuAccess('payroll.slips'))
       <li class="nav-item mt-2" data-testid="sidebar-group-payroll">
         <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">Operasional Payroll</h6>
       </li>
@@ -309,6 +309,16 @@
             <i class="ni ni-collection text-sm {{ Request::is('payroll/reports') ? 'text-white' : 'text-info' }}" aria-hidden="true"></i>
           </div>
           <span class="nav-link-text ms-1">Laporan Payroll</span>
+        </a>
+      </li>
+      @endif
+      @if(hasMenuAccess('payroll.slips'))
+      <li class="nav-item pb-2">
+        <a class="nav-link {{ Request::is('my-payslips') || Request::is('my-payslips/*') ? 'active' : '' }}" href="{{ route('my-payslips.index') }}" title="Lihat slip gaji pribadi" data-testid="sidebar-menu-my-payslips" data-bs-toggle="tooltip">
+          <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+            <i class="fas fa-file-invoice-dollar text-sm {{ Request::is('my-payslips') || Request::is('my-payslips/*') ? 'text-white' : 'text-dark' }}" aria-hidden="true"></i>
+          </div>
+          <span class="nav-link-text ms-1">Slip Gaji Saya</span>
         </a>
       </li>
       @endif
