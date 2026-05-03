@@ -8,9 +8,12 @@ use App\Models\Leave;
 use App\Models\Lembur;
 use App\Models\LemburSetting;
 use App\Models\Payroll;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollSetting;
 use App\Models\Tenant;
 use App\Services\PayrollAttendanceCalculationService;
 use App\Services\PayrollOvertimeCalculationService;
+use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +36,7 @@ class PayrollController extends Controller
         $this->applyPayrollSorting($payrollQuery, $selectedSortBy, $selectedSortDirection);
 
         $payrolls = (clone $payrollQuery)
-            ->with(['employee.tenant'])
+            ->with(['employee.tenant', 'payrollPeriod'])
             ->paginate(10)
             ->withQueryString();
 
@@ -51,6 +54,12 @@ class PayrollController extends Controller
         ];
 
         $tenants = Tenant::query()->orderBy('name')->get();
+        $periods = PayrollPeriod::query()
+            ->with('tenant')
+            ->orderByDesc('payroll_month')
+            ->latest('id')
+            ->limit(6)
+            ->get();
         $selectedTenantName = $selectedTenantId !== null
             ? optional($tenants->firstWhere('id', $selectedTenantId))->name
             : null;
@@ -65,6 +74,7 @@ class PayrollController extends Controller
             'selectedSortBy' => $selectedSortBy,
             'selectedSortDirection' => $selectedSortDirection,
             'sortOptions' => $this->payrollSortOptions(),
+            'periods' => $periods,
         ]);
     }
 
@@ -148,6 +158,151 @@ class PayrollController extends Controller
             'employees' => $employees,
             'rules' => $rules,
         ]);
+    }
+
+    public function settings(Request $request): View
+    {
+        $currentUser = $request->user() ?? auth()->user();
+        $tenants = Tenant::query()
+            ->with('payrollSetting')
+            ->when($currentUser?->isManager(), fn ($query) => $query->where('id', $currentUser->tenant_id))
+            ->orderBy('name')
+            ->get();
+
+        return view('payroll.settings', [
+            'tenants' => $tenants,
+        ]);
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $currentUser = $request->user() ?? auth()->user();
+
+        $payload = $request->validate([
+            'tenant_id' => [
+                'required',
+                Rule::exists('tenants', 'id')->where(function ($query) use ($currentUser) {
+                    if ($currentUser?->isManager()) {
+                        $query->where('id', $currentUser->tenant_id);
+                    }
+                }),
+            ],
+            'payroll_day' => ['required', 'integer', 'min:1', 'max:31'],
+            'period_start_day' => ['required', 'integer', 'min:1', 'max:31'],
+            'period_end_day' => ['required', 'integer', 'min:1', 'max:31'],
+            'period_month_offset' => ['required', Rule::in(['current', 'previous'])],
+            'publish_slips_on_approval' => ['nullable', 'boolean'],
+            'status' => ['required', Rule::in(['active', 'inactive'])],
+        ]);
+
+        $payload['publish_slips_on_approval'] = $request->boolean('publish_slips_on_approval');
+
+        PayrollSetting::updateOrCreate(
+            ['tenant_id' => $payload['tenant_id']],
+            $payload
+        );
+
+        return redirect()
+            ->route('payroll.settings')
+            ->with('success', 'Pengaturan payroll perusahaan berhasil disimpan.');
+    }
+
+    public function generateForm(Request $request): View
+    {
+        $currentUser = $request->user() ?? auth()->user();
+        $tenants = Tenant::query()
+            ->with('payrollSetting')
+            ->when($currentUser?->isManager(), fn ($query) => $query->where('id', $currentUser->tenant_id))
+            ->orderBy('name')
+            ->get();
+
+        return view('payroll.generate', [
+            'tenants' => $tenants,
+            'defaultPayrollMonth' => now()->format('Y-m'),
+        ]);
+    }
+
+    public function generate(Request $request): RedirectResponse
+    {
+        $currentUser = $request->user() ?? auth()->user();
+
+        $payload = $request->validate([
+            'tenant_id' => [
+                'required',
+                Rule::exists('tenants', 'id')->where(function ($query) use ($currentUser) {
+                    if ($currentUser?->isManager()) {
+                        $query->where('id', $currentUser->tenant_id);
+                    }
+                }),
+            ],
+            'payroll_month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $tenant = Tenant::with('payrollSetting')->findOrFail($payload['tenant_id']);
+        $setting = $tenant->payrollSetting ?: PayrollSetting::create([
+            'tenant_id' => $tenant->id,
+        ]);
+
+        $dates = $setting->periodDatesForMonth($payload['payroll_month'].'-01');
+        $payrollMonth = Carbon::parse($dates['payroll_month']);
+
+        $period = PayrollPeriod::firstOrCreate(
+            [
+                'tenant_id' => $tenant->id,
+                'payroll_month' => $dates['payroll_month'],
+            ],
+            [
+                'payroll_setting_id' => $setting->id,
+                'name' => $tenant->name.' - Payroll '.$payrollMonth->translatedFormat('F Y'),
+                'period_start' => $dates['period_start'],
+                'period_end' => $dates['period_end'],
+                'payroll_date' => $dates['payroll_date'],
+                'status' => 'draft',
+                'generated_at' => now(),
+                'created_by' => $currentUser?->id,
+            ]
+        );
+
+        $employees = Employee::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($employees as $employee) {
+            if (Payroll::where('payroll_period_id', $period->id)->where('employee_id', $employee->id)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            $template = Payroll::query()
+                ->where('employee_id', $employee->id)
+                ->where(function (Builder $query) use ($period): void {
+                    $query->whereNull('payroll_period_id')
+                        ->orWhere('payroll_period_id', '!=', $period->id);
+                })
+                ->latest('period_end')
+                ->latest('id')
+                ->first();
+
+            $rule = $this->resolveDeductionRuleForGeneratedPayroll($employee, $template);
+
+            if (! $template || ! $rule) {
+                $skipped++;
+                continue;
+            }
+
+            $payload = $this->buildGeneratedPayrollPayload($employee, $template, $rule, $period);
+            Payroll::create($payload);
+            $created++;
+        }
+
+        return redirect()
+            ->route('payroll.index', ['tenant_id' => $tenant->id])
+            ->with('success', "Generate payroll selesai. {$created} payroll dibuat, {$skipped} dilewati.");
     }
 
     public function edit(Request $request, Payroll $payroll): View
@@ -280,6 +435,67 @@ class PayrollController extends Controller
         return redirect()
             ->route('payroll.index')
             ->with('success', 'Payroll berhasil dihapus');
+    }
+
+    protected function resolveDeductionRuleForGeneratedPayroll(Employee $employee, ?Payroll $template): ?DeductionRule
+    {
+        if ($template?->deduction_rule_id) {
+            return DeductionRule::where('tenant_id', $employee->tenant_id)->find($template->deduction_rule_id);
+        }
+
+        $salaryType = ($template?->daily_wage ?? 0) > 0 && ! (($template?->monthly_salary ?? 0) > 0)
+            ? 'daily'
+            : 'monthly';
+
+        return DeductionRule::query()
+            ->where('tenant_id', $employee->tenant_id)
+            ->where('salary_type', $salaryType)
+            ->first();
+    }
+
+    protected function buildGeneratedPayrollPayload(Employee $employee, Payroll $template, DeductionRule $rule, PayrollPeriod $period): array
+    {
+        $payload = [
+            'payroll_period_id' => $period->id,
+            'employee_id' => $employee->id,
+            'deduction_rule_id' => $rule->id,
+            'status' => 'draft',
+            'monthly_salary' => $template->monthly_salary,
+            'daily_wage' => $template->daily_wage,
+            'allowance_transport' => $template->allowance_transport,
+            'allowance_meal' => $template->allowance_meal,
+            'allowance_health' => $template->allowance_health,
+            'deduction_tax' => $template->deduction_tax,
+            'deduction_bpjs' => $template->deduction_bpjs,
+            'deduction_loan' => $template->deduction_loan,
+            'period_start' => $period->period_start,
+            'period_end' => $period->period_end,
+        ];
+
+        $calc = app(PayrollAttendanceCalculationService::class)->calculateWithRule(
+            $employee,
+            $rule,
+            $period->period_start,
+            $period->period_end,
+            isset($payload['monthly_salary']) ? (float) $payload['monthly_salary'] : null,
+            isset($payload['daily_wage']) ? (float) $payload['daily_wage'] : null,
+        );
+
+        $overtime = app(PayrollOvertimeCalculationService::class)->calculate(
+            $employee,
+            $period->period_start,
+            $period->period_end,
+            isset($payload['monthly_salary']) ? (float) $payload['monthly_salary'] : null,
+            isset($payload['daily_wage']) ? (float) $payload['daily_wage'] : null,
+            $rule->salary_type,
+        );
+
+        return array_merge($payload, [
+            'deduction_attendance' => $calc['deduction_attendance'],
+            'deduction_attendance_note' => $calc['deduction_attendance_note'],
+            'overtime_pay' => $overtime['overtime_pay'],
+            'overtime_note' => $overtime['overtime_note'],
+        ]);
     }
 
     protected function validatedPayload(Request $request): array

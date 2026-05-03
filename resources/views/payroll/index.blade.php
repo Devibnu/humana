@@ -28,6 +28,12 @@
                                 <span class="badge bg-gradient-light text-dark">{{ $activePayrollFilter }}</span>
                             @endforeach
                         @endif
+                        <a href="{{ route('payroll.settings') }}" class="btn btn-outline-secondary btn-sm mb-0" data-testid="btn-open-payroll-settings">
+                            <i class="fas fa-cog me-1"></i> Pengaturan Payroll
+                        </a>
+                        <a href="{{ route('payroll.generate') }}" class="btn bg-gradient-dark btn-sm mb-0" data-testid="btn-open-payroll-generate">
+                            <i class="fas fa-cogs me-1"></i> Generate Payroll
+                        </a>
                         <a href="{{ route('payroll.reports') }}" class="btn btn-outline-dark btn-sm mb-0" data-testid="btn-open-payroll-reports">
                             <i class="fas fa-chart-line me-1"></i> Laporan Payroll
                         </a>
@@ -73,6 +79,34 @@
                             </div>
                         </div>
                     </div>
+
+                    @if ($periods->isNotEmpty())
+                        <div class="border border-radius-xl p-3 mb-4 bg-white" data-testid="payroll-periods-strip">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                <div>
+                                    <p class="text-xs text-uppercase text-secondary font-weight-bold mb-1">Periode Payroll Terbaru</p>
+                                    <h6 class="mb-0">Pantau batch payroll yang sudah pernah digenerate</h6>
+                                </div>
+                                <span class="badge bg-gradient-light text-dark">{{ $periods->count() }} periode</span>
+                            </div>
+                            <div class="row g-3">
+                                @foreach ($periods as $period)
+                                    <div class="col-xl-4 col-md-6">
+                                        <div class="border border-radius-lg p-3 h-100">
+                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                <div>
+                                                    <p class="text-sm font-weight-bold mb-1">{{ $period->name }}</p>
+                                                    <p class="text-xs text-secondary mb-1">{{ $period->period_start->format('d M Y') }} - {{ $period->period_end->format('d M Y') }}</p>
+                                                    <p class="text-xs text-secondary mb-0">Tanggal gajian {{ $period->payroll_date->format('d M Y') }}</p>
+                                                </div>
+                                                <span class="badge {{ $period->status === 'approved' ? 'bg-gradient-success' : 'bg-gradient-secondary' }}">{{ ucfirst($period->status) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="border border-radius-xl p-3 mb-4 bg-gray-100">
                         <form action="{{ route('payroll.index') }}" method="GET" class="row g-3 align-items-end" data-testid="payroll-filter-form">
@@ -166,7 +200,10 @@
                                         <td class="text-start">
                                             <div class="py-2">
                                                 <p class="text-sm font-weight-bold mb-1">{{ $payroll->period_start && $payroll->period_end ? $payroll->period_start->format('d M Y').' - '.$payroll->period_end->format('d M Y') : 'Periode belum diatur' }}</p>
-                                                <p class="text-xs text-secondary mb-0">Diurutkan untuk review dan audit payroll.</p>
+                                                <p class="text-xs text-secondary mb-0">{{ $payroll->payrollPeriod?->name ?? 'Input manual tanpa batch period.' }}</p>
+                                                @if ($payroll->status)
+                                                    <span class="badge bg-gradient-light text-dark mt-1">{{ ucfirst($payroll->status) }}</span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="text-start">

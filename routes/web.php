@@ -73,6 +73,10 @@ Route::group(['middleware' => 'auth'], function () {
 	Route::get('payroll/reports/export/{format}', [PayrollReportController::class, 'export'])->middleware('menu_access:payroll.reports')->whereIn('format', ['xlsx', 'pdf'])->name('payroll.reports.export');
 	Route::get('my-payslips', [MyPayslipController::class, 'index'])->middleware('menu_access:payroll.slips')->name('my-payslips.index');
 	Route::get('my-payslips/{payroll}', [MyPayslipController::class, 'show'])->middleware('menu_access:payroll.slips')->name('my-payslips.show');
+	Route::get('payroll/settings', [PayrollController::class, 'settings'])->middleware('menu_access:payroll')->name('payroll.settings');
+	Route::post('payroll/settings', [PayrollController::class, 'updateSettings'])->middleware('menu_access:payroll')->name('payroll.settings.update');
+	Route::get('payroll/generate', [PayrollController::class, 'generateForm'])->middleware('menu_access:payroll')->name('payroll.generate');
+	Route::post('payroll/generate', [PayrollController::class, 'generate'])->middleware('menu_access:payroll')->name('payroll.generate.store');
 	Route::get('payroll/create', [PayrollController::class, 'create'])->middleware('menu_access:payroll')->name('payroll.create');
 	Route::post('payroll', [PayrollController::class, 'store'])->middleware('menu_access:payroll')->name('payroll.store');
 	Route::get('payroll/{payroll}', [PayrollController::class, 'show'])->middleware('menu_access:payroll')->name('payroll.show');

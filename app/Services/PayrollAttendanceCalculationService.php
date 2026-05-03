@@ -148,13 +148,11 @@ class PayrollAttendanceCalculationService
             }
 
             // Early leave
-            if (in_array($status, ['earlyleave', 'early_leave'], true)) {
-                $early = (int) ($a->early_leave_minutes ?? 0);
-                if ($early > $rule->tolerance_minutes) {
-                    $amount = ($early / 60) * $ratePerHour;
-                    $deduction += $amount;
-                    $notes[] = "Pulang cepat {$early} menit → Rp " . number_format($amount, 0, ',', '.');
-                }
+            $early = (int) ($a->early_leave_minutes ?? 0);
+            if ($early > $rule->tolerance_minutes) {
+                $amount = ($early / 60) * $ratePerHour;
+                $deduction += $amount;
+                $notes[] = "Pulang cepat {$early} menit → Rp " . number_format($amount, 0, ',', '.');
             }
 
             // Alpha (absent)

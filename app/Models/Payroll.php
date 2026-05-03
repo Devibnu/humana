@@ -11,7 +11,10 @@ class Payroll extends Model
 
     protected $fillable = [
         'employee_id',
+        'payroll_period_id',
         'deduction_rule_id',
+        'status',
+        'published_at',
         'monthly_salary',
         'daily_wage',
         'allowance_transport',
@@ -33,6 +36,11 @@ class Payroll extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function payrollPeriod()
+    {
+        return $this->belongsTo(PayrollPeriod::class);
+    }
+
     public function deductionRule()
     {
         return $this->belongsTo(DeductionRule::class);
@@ -51,5 +59,6 @@ class Payroll extends Model
         'deduction_attendance' => 'decimal:2',
         'period_start' => 'date',
         'period_end' => 'date',
+        'published_at' => 'datetime',
     ];
 }

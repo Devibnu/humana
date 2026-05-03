@@ -94,6 +94,16 @@ class Tenant extends Model
         return $this->hasMany(EmployeeLevel::class);
     }
 
+    public function payrollSetting()
+    {
+        return $this->hasOne(PayrollSetting::class);
+    }
+
+    public function payrollPeriods()
+    {
+        return $this->hasMany(PayrollPeriod::class);
+    }
+
     public function getRouteKeyName()
     {
         return 'slug';
