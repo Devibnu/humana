@@ -7,6 +7,17 @@
         border-radius: 12px;
         transition: box-shadow 0.2s ease;
     }
+    .payroll-setting-column {
+        width: 100%;
+    }
+    .payroll-setting-card .card-body {
+        padding: 1.5rem;
+    }
+    @media (min-width: 1200px) {
+        .payroll-setting-card .card-body {
+            padding: 1.75rem 2rem;
+        }
+    }
     .payroll-setting-card:hover {
         box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important;
     }
@@ -133,7 +144,7 @@
                             $status        = old('status',             $setting?->status             ?? 'active');
                             $initials      = strtoupper(substr($tenant->name, 0, 2));
                         @endphp
-                        <div class="col-xl-6">
+                        <div class="col-12 payroll-setting-column">
                             <div class="card border shadow-xs h-100 payroll-setting-card">
                                 {{-- Company Header --}}
                                 <div class="card-body pb-2">
