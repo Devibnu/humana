@@ -16,7 +16,7 @@ class PayrollCreateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_hr_dapat_membuka_form_input_payroll(): void
+    public function test_admin_hr_yang_mengakses_input_payroll_diarahkan_ke_generate_payroll(): void
     {
         $this->seed(RolesTableSeeder::class);
 
@@ -40,30 +40,10 @@ class PayrollCreateTest extends TestCase
             'status' => 'active',
         ]);
 
-        $employee = Employee::create([
-            'tenant_id' => $tenant->id,
-            'employee_code' => 'PAY-001',
-            'name' => 'Karyawan Payroll',
-            'email' => 'karyawan-payroll@example.test',
-            'status' => 'active',
-        ]);
-
         $response = $this->actingAs($admin)->get(route('payroll.create'));
 
-        $response->assertOk();
-        $response->assertSee('Input Payroll');
-        $response->assertSee('data-testid="payroll-create-form"', false);
-        $response->assertSee('data-testid="payroll-form-context-card"', false);
-        $response->assertSee('data-testid="payroll-form-compensation-card"', false);
-        $response->assertSee('data-testid="payroll-form-deduction-card"', false);
-        $response->assertSee('data-testid="payroll-form-guidance-card"', false);
-        $response->assertSee('data-testid="payroll-employee-select"', false);
-        $response->assertSee('data-testid="payroll-monthly-salary-input"', false);
-        $response->assertSee('data-testid="payroll-daily-wage-input"', false);
-        $response->assertSee('data-testid="btn-submit-payroll"', false);
-        $response->assertSee($employee->name);
-        $response->assertSee('Checklist cepat sebelum simpan');
-        $response->assertSee('Lengkapi periode payroll');
+        $response->assertRedirect(route('payroll.generate'));
+        $response->assertSessionHas('info', 'Input payroll manual sudah tidak digunakan. Gunakan Generate Payroll.');
     }
 
     public function test_submit_payroll_divalidasi_dan_menampilkan_pesan_informatif(): void

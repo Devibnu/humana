@@ -138,26 +138,11 @@ class PayrollController extends Controller
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): RedirectResponse
     {
-        $currentUser = $request->user() ?? auth()->user();
-
-        $employees = Employee::query()
-            ->with(['tenant', 'department', 'position'])
-            ->when($currentUser?->isManager(), fn ($query) => $query->where('tenant_id', $currentUser->tenant_id))
-            ->orderBy('name')
-            ->get();
-
-        $rules = DeductionRule::query()
-            ->when($currentUser?->tenant_id, fn ($query) => $query->where('tenant_id', $currentUser->tenant_id))
-            ->orderBy('tenant_id')
-            ->orderBy('working_hours_per_day')
-            ->get();
-
-        return view('payroll.create', [
-            'employees' => $employees,
-            'rules' => $rules,
-        ]);
+        return redirect()
+            ->route('payroll.generate')
+            ->with('info', 'Input payroll manual sudah tidak digunakan. Gunakan Generate Payroll.');
     }
 
     public function settings(Request $request): View
