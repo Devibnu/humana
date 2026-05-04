@@ -7,7 +7,7 @@
         <div class="card mx-4 mb-4 shadow-xs" data-testid="payroll-create-card">
             <div class="card-header pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
-                    <h5 class="mb-1">Input Payroll</h5>
+                    <h5 class="mb-1">Payroll Manual</h5>
                     <p class="text-sm text-secondary mb-0">Masukkan payroll dengan alur yang lebih terstruktur: pilih karyawan, tentukan rule, isi kompensasi, lalu lengkapi periode dan potongan.</p>
                 </div>
                 <a href="{{ route('payroll.index') }}" class="btn btn-light btn-sm mb-0"><i class="fas fa-times me-1"></i> Batal</a>

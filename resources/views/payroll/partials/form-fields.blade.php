@@ -99,7 +99,7 @@
                     <div>
                         <p class="text-xs text-uppercase text-secondary font-weight-bold mb-1">Potongan Dan Periode</p>
                         <h6 class="mb-1">Lengkapi periode payroll dan potongan manual</h6>
-                        <p class="text-sm text-secondary mb-0">Blok ini menutup proses input payroll dengan potongan tambahan dan rentang periode agar slip payroll lebih mudah dibaca.</p>
+                        <p class="text-sm text-secondary mb-0">Blok ini menutup proses payroll manual dengan potongan tambahan dan rentang periode agar slip payroll lebih mudah dibaca.</p>
                     </div>
                     <span class="badge bg-gradient-dark">Langkah 3</span>
                 </div>

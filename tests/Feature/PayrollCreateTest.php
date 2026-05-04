@@ -43,7 +43,7 @@ class PayrollCreateTest extends TestCase
         $response = $this->actingAs($admin)->get(route('payroll.create'));
 
         $response->assertRedirect(route('payroll.generate'));
-        $response->assertSessionHas('info', 'Input payroll manual sudah tidak digunakan. Gunakan Generate Payroll.');
+        $response->assertSessionHas('info', 'Gunakan Generate Payroll untuk memproses payroll.');
     }
 
     public function test_submit_payroll_divalidasi_dan_menampilkan_pesan_informatif(): void

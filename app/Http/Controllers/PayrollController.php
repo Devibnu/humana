@@ -142,7 +142,7 @@ class PayrollController extends Controller
     {
         return redirect()
             ->route('payroll.generate')
-            ->with('info', 'Input payroll manual sudah tidak digunakan. Gunakan Generate Payroll.');
+            ->with('info', 'Gunakan Generate Payroll untuk memproses payroll.');
     }
 
     public function settings(Request $request): View
