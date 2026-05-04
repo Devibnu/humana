@@ -169,7 +169,7 @@
                             <p class="text-sm text-secondary mb-3">Ubah tenant, kata kunci, atau urutan untuk melihat payroll lain.</p>
                             <a href="{{ route('payroll.index') }}" class="btn btn-light btn-sm mb-0">Reset Filter</a>
                         @else
-                            <p class="text-secondary mb-0">Belum ada data payroll. Mulai dari input payroll pertama untuk karyawan aktif.</p>
+                                <p class="text-secondary mb-0">Belum ada data payroll untuk ditampilkan.</p>
                         @endif
                     </div>
                 @else
