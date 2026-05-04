@@ -37,9 +37,7 @@
                         <a href="{{ route('payroll.reports') }}" class="btn btn-outline-dark btn-sm mb-0" data-testid="btn-open-payroll-reports">
                             <i class="fas fa-chart-line me-1"></i> Laporan Payroll
                         </a>
-                        <a href="{{ route('payroll.create') }}" class="btn bg-gradient-primary btn-sm mb-0" data-testid="btn-open-payroll-create">
-                            <i class="fas fa-plus me-1"></i> Input Payroll
-                        </a>
+
                     </div>
                 </div>
             </div>
