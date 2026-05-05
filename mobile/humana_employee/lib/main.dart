@@ -12,10 +12,86 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String apiBaseUrl = 'https://humana.ibnuapps.cloud/api/mobile';
+const bool _showPayslipPreview = bool.fromEnvironment('SHOW_PAYSLIP_DEMO');
 const Color _primary = Color(0xFFcb0c9f);
 const Color _ink = Color(0xFF27375F);
 const Color _muted = Color(0xFF8392AB);
 const Color _surface = Colors.white;
+const Color _navy = Color(0xFF344767);
+
+final List<Map<String, dynamic>> _demoPayslips = [
+  {
+    'period_start': '2026-04-01',
+    'period_end': '2026-04-30',
+    'base_salary': 6800000,
+    'net_salary': 7525000,
+    'allowances': {
+      'transport': 350000,
+      'meal': 450000,
+      'health': 200000,
+      'overtime': 875000,
+      'total': 1875000,
+    },
+    'deductions': {
+      'tax': 320000,
+      'bpjs': 180000,
+      'loan': 50000,
+      'attendance': 600000,
+      'total': 1150000,
+    },
+  },
+  {
+    'period_start': '2026-03-01',
+    'period_end': '2026-03-31',
+    'base_salary': 6800000,
+    'net_salary': 7340000,
+    'allowances': {
+      'transport': 350000,
+      'meal': 450000,
+      'health': 200000,
+      'overtime': 650000,
+      'total': 1650000,
+    },
+    'deductions': {
+      'tax': 320000,
+      'bpjs': 180000,
+      'loan': 50000,
+      'attendance': 560000,
+      'total': 1110000,
+    },
+  },
+  {
+    'period_start': '2026-02-01',
+    'period_end': '2026-02-28',
+    'base_salary': 6800000,
+    'net_salary': 7180000,
+    'allowances': {
+      'transport': 350000,
+      'meal': 420000,
+      'health': 200000,
+      'overtime': 520000,
+      'total': 1490000,
+    },
+    'deductions': {
+      'tax': 320000,
+      'bpjs': 180000,
+      'loan': 50000,
+      'attendance': 740000,
+      'total': 1290000,
+    },
+  },
+];
+
+final Map<String, dynamic> _demoPayslipSummary = {
+  'total': _demoPayslips.length,
+  'latest_net_salary': _demoPayslips.first['net_salary'],
+  'average_net_salary': _demoPayslips
+          .map((item) => _moneyNumber(item['net_salary']))
+          .fold<double>(0, (sum, value) => sum + value) /
+      _demoPayslips.length,
+  'latest_total_allowance': (_demoPayslips.first['allowances']
+      as Map<String, dynamic>)['total'],
+};
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -149,6 +225,8 @@ String _periodLabel(Map<String, dynamic> payslip) {
   return '$start - $end';
 }
 
+void _noop() {}
+
 class HumanaEmployeeApp extends StatelessWidget {
   const HumanaEmployeeApp({super.key});
 
@@ -214,6 +292,14 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showPayslipPreview) {
+      return const PayslipPage(
+        token: 'demo-preview-token',
+        onLoggedOut: _noop,
+        previewMode: true,
+      );
+    }
+
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -250,8 +336,8 @@ class _EmployeeMobileShellState extends State<EmployeeMobileShell> {
   Widget build(BuildContext context) {
     final pages = [
       AttendanceHomePage(token: widget.token, onLoggedOut: widget.onLoggedOut),
-      const OvertimePage(),
-      const LeaveRequestPage(),
+      OvertimePage(token: widget.token, onLoggedOut: widget.onLoggedOut),
+      LeaveRequestPage(token: widget.token, onLoggedOut: widget.onLoggedOut),
       PayslipPage(token: widget.token, onLoggedOut: widget.onLoggedOut),
       ProfilePage(onLoggedOut: widget.onLoggedOut),
     ];
@@ -662,158 +748,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
   }
 }
 
-class OvertimePage extends StatelessWidget {
-  const OvertimePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _MobilePageScaffold(
-      title: 'Pengajuan Lembur',
-      subtitle: 'Ajukan lembur langsung dari mobile.',
-      icon: Icons.more_time_rounded,
-      child: Column(
-        children: [
-          _FeatureHeroCard(
-            title: 'Lembur Hari Ini',
-            value: 'Belum ada pengajuan',
-            subtitle: 'Gunakan form di bawah untuk membuat pengajuan baru.',
-            icon: Icons.assignment_turned_in_rounded,
-            color: const Color(0xFF5E72E4),
-          ),
-          const SizedBox(height: 16),
-          _FormCard(
-            title: 'Ajukan Lembur',
-            children: [
-              const _ReadonlyField(label: 'Karyawan', value: 'Raka Pratama'),
-              const SizedBox(height: 12),
-              Row(
-                children: const [
-                  Expanded(
-                    child: _ReadonlyField(label: 'Mulai', value: '17:00'),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _ReadonlyField(label: 'Selesai', value: '19:00'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const _ReadonlyField(
-                label: 'Alasan',
-                value: 'Contoh: menyelesaikan pekerjaan operasional.',
-                minLines: 2,
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Tampilan lembur sudah siap. Submit API mobile kita sambungkan setelah desain disetujui.',
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('Ajukan Lembur'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const _StatusListCard(
-            title: 'Riwayat Lembur',
-            emptyText: 'Belum ada riwayat lembur dari aplikasi mobile.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class LeaveRequestPage extends StatelessWidget {
-  const LeaveRequestPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return _MobilePageScaffold(
-      title: 'Cuti / Izin',
-      subtitle: 'Pengajuan izin, sakit, dan cuti.',
-      icon: Icons.beach_access_rounded,
-      child: Column(
-        children: [
-          const _FeatureHeroCard(
-            title: 'Saldo Cuti',
-            value: '12 hari',
-            subtitle: 'Estimasi saldo tahun berjalan.',
-            icon: Icons.calendar_month_rounded,
-            color: Color(0xFF2DCE89),
-          ),
-          const SizedBox(height: 16),
-          _FormCard(
-            title: 'Ajukan Cuti / Izin',
-            children: [
-              const _ReadonlyField(label: 'Jenis', value: 'Cuti Tahunan'),
-              const SizedBox(height: 12),
-              Row(
-                children: const [
-                  Expanded(
-                    child: _ReadonlyField(
-                      label: 'Mulai',
-                      value: 'Pilih tanggal',
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _ReadonlyField(
-                      label: 'Selesai',
-                      value: 'Pilih tanggal',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const _ReadonlyField(
-                label: 'Keterangan',
-                value: 'Contoh: keperluan keluarga.',
-                minLines: 2,
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Tampilan cuti sudah siap. Submit API mobile kita sambungkan setelah desain disetujui.',
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Buat Pengajuan'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const _StatusListCard(
-            title: 'Riwayat Cuti / Izin',
-            emptyText: 'Belum ada riwayat cuti dari aplikasi mobile.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class PayslipPage extends StatefulWidget {
-  const PayslipPage({
+class OvertimePage extends StatefulWidget {
+  const OvertimePage({
     super.key,
     required this.token,
     required this.onLoggedOut,
@@ -823,11 +759,684 @@ class PayslipPage extends StatefulWidget {
   final VoidCallback onLoggedOut;
 
   @override
+  State<OvertimePage> createState() => _OvertimePageState();
+}
+
+class _OvertimePageState extends State<OvertimePage> {
+  final _reasonController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _startTime = const TimeOfDay(hour: 18, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 19, minute: 0);
+  bool _loading = true;
+  bool _submitting = false;
+  String? _message;
+  Map<String, dynamic>? _payload;
+  List<Map<String, dynamic>> _history = [];
+
+  Map<String, String> get _headers => {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${widget.token}',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _loading = true);
+    try {
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/overtimes'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 401) {
+        widget.onLoggedOut();
+        return;
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400) {
+        throw ApiException.fromPayload(payload);
+      }
+
+      setState(() {
+        _payload = payload;
+        _history = (payload['data'] as List<dynamic>? ?? [])
+            .map((item) => item as Map<String, dynamic>)
+            .toList();
+        _message = null;
+      });
+    } catch (error) {
+      setState(() => _message = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    final start = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
+    final end = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _endTime.hour,
+      _endTime.minute,
+    );
+
+    if (!end.isAfter(start)) {
+      setState(() => _message = 'Jam selesai harus lebih besar dari jam mulai.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _message = null;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/overtimes'),
+        headers: _headers,
+        body: jsonEncode({
+          'waktu_mulai': start.toIso8601String(),
+          'waktu_selesai': end.toIso8601String(),
+          'alasan': _reasonController.text.trim(),
+        }),
+      );
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 401) {
+        widget.onLoggedOut();
+        return;
+      }
+
+      if (response.statusCode >= 400) {
+        throw ApiException.fromPayload(payload);
+      }
+
+      _reasonController.clear();
+      setState(() => _message = payload['message'] as String?);
+      await _refresh();
+    } catch (error) {
+      setState(() => _message = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _startTime);
+    if (picked != null) {
+      setState(() => _startTime = picked);
+    }
+  }
+
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _endTime);
+    if (picked != null) {
+      setState(() => _endTime = picked);
+    }
+  }
+
+  String _formatHours(dynamic value) {
+    final hours = (value as num?)?.toDouble() ?? 0;
+    if (hours == hours.roundToDouble()) {
+      return hours.toStringAsFixed(0);
+    }
+
+    return hours.toStringAsFixed(1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final employee = _payload?['employee'] as Map<String, dynamic>?;
+    final settings = _payload?['settings'] as Map<String, dynamic>?;
+    final summary = _payload?['summary'] as Map<String, dynamic>?;
+    final latest = _history.isEmpty ? null : _history.first;
+    final submissionRole = settings?['submission_role']?.toString() ?? 'karyawan';
+    final blockedByPolicy = submissionRole == 'atasan';
+
+    return _MobilePageScaffold(
+      title: 'Pengajuan Lembur',
+      subtitle: 'Ajukan lembur langsung dari mobile.',
+      icon: Icons.more_time_rounded,
+      child: _loading
+          ? const Center(child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: CircularProgressIndicator(),
+            ))
+          : Column(
+              children: [
+                _FeatureHeroCard(
+                  title: 'Akumulasi Lembur',
+                  value: '${_formatHours(summary?['total_hours'])} jam',
+                  subtitle: latest == null
+                      ? 'Belum ada riwayat lembur. Buat pengajuan baru dari form di bawah.'
+                      : 'Status terakhir: ${latest['status_label'] ?? latest['status'] ?? '-'} pada ${_dateLabel(latest['tanggal']?.toString())}.',
+                  icon: Icons.assignment_turned_in_rounded,
+                  color: const Color(0xFF5E72E4),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _MiniMetricCard(
+                      label: 'Pending',
+                      value: '${summary?['pending'] ?? 0}',
+                    ),
+                    _MiniMetricCard(
+                      label: 'Disetujui',
+                      value: '${summary?['approved'] ?? 0}',
+                    ),
+                    _MiniMetricCard(
+                      label: 'Ditolak',
+                      value: '${summary?['rejected'] ?? 0}',
+                    ),
+                  ],
+                ),
+                if (_message != null) ...[
+                  const SizedBox(height: 12),
+                  _MessageBox(message: _message!),
+                ],
+                const SizedBox(height: 16),
+                _FormCard(
+                  title: 'Ajukan Lembur',
+                  children: [
+                    _ReadonlyField(
+                      label: 'Karyawan',
+                      value: employee?['name']?.toString() ?? '-',
+                    ),
+                    const SizedBox(height: 12),
+                    _ActionField(
+                      label: 'Tanggal Lembur',
+                      value: _dateLabel(_selectedDate.toIso8601String()),
+                      icon: Icons.event_rounded,
+                      onTap: _pickDate,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionField(
+                            label: 'Jam Mulai',
+                            value: _startTime.format(context),
+                            icon: Icons.schedule_rounded,
+                            onTap: _pickStartTime,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionField(
+                            label: 'Jam Selesai',
+                            value: _endTime.format(context),
+                            icon: Icons.schedule_send_rounded,
+                            onTap: _pickEndTime,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _reasonController,
+                      minLines: 3,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Alasan',
+                        hintText: 'Contoh: closing operasional, maintenance, atau support event.',
+                        filled: true,
+                        fillColor: const Color(0xFFF8F9FA),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    if (blockedByPolicy) ...[
+                      const SizedBox(height: 12),
+                      const _MessageBox(
+                        message: 'Tenant Anda mengharuskan pengajuan lembur dibuat oleh atasan, jadi form mobile tidak bisa mengirim pengajuan langsung.',
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: blockedByPolicy || _submitting ? null : _submit,
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.send_rounded),
+                        label: Text(_submitting ? 'Mengirim...' : 'Ajukan Lembur'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ActivityListCard(
+                  title: 'Riwayat Lembur',
+                  emptyText: 'Belum ada riwayat lembur dari aplikasi mobile.',
+                  children: _history.map((item) {
+                    return _HistoryItem(
+                      title: _dateLabel(item['tanggal']?.toString()),
+                      subtitle:
+                          '${_timeValue(item['waktu_mulai'])} - ${_timeValue(item['waktu_selesai'])} • ${_formatHours(item['durasi_jam'])} jam',
+                      status: item['status_label']?.toString() ?? '-',
+                      description: item['alasan']?.toString() ?? 'Tanpa keterangan',
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class LeaveRequestPage extends StatefulWidget {
+  const LeaveRequestPage({
+    super.key,
+    required this.token,
+    required this.onLoggedOut,
+  });
+
+  final String token;
+  final VoidCallback onLoggedOut;
+
+  @override
+  State<LeaveRequestPage> createState() => _LeaveRequestPageState();
+}
+
+class _LeaveRequestPageState extends State<LeaveRequestPage> {
+  final _reasonController = TextEditingController();
+  bool _loading = true;
+  bool _submitting = false;
+  String? _message;
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
+  Map<String, dynamic>? _payload;
+  List<Map<String, dynamic>> _history = [];
+  List<Map<String, dynamic>> _leaveTypes = [];
+  int? _selectedLeaveTypeId;
+
+  Map<String, String> get _headers => {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${widget.token}',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _loading = true);
+    try {
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/leaves'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 401) {
+        widget.onLoggedOut();
+        return;
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400) {
+        throw ApiException.fromPayload(payload);
+      }
+
+      final leaveTypes = (payload['leave_types'] as List<dynamic>? ?? [])
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+
+      setState(() {
+        _payload = payload;
+        _leaveTypes = leaveTypes;
+        _history = (payload['data'] as List<dynamic>? ?? [])
+            .map((item) => item as Map<String, dynamic>)
+            .toList();
+        _selectedLeaveTypeId ??= leaveTypes.isEmpty
+            ? null
+            : leaveTypes.first['id'] as int?;
+        _message = null;
+      });
+    } catch (error) {
+      setState(() => _message = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selectedLeaveTypeId == null) {
+      setState(() => _message = 'Pilih jenis cuti terlebih dahulu.');
+      return;
+    }
+
+    if (_endDate.isBefore(_startDate)) {
+      setState(() => _message = 'Tanggal selesai tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+
+    if (_reasonController.text.trim().isEmpty) {
+      setState(() => _message = 'Keterangan pengajuan wajib diisi.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _message = null;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/leaves'),
+        headers: _headers,
+        body: jsonEncode({
+          'leave_type_id': _selectedLeaveTypeId,
+          'start_date': _startDate.toIso8601String(),
+          'end_date': _endDate.toIso8601String(),
+          'reason': _reasonController.text.trim(),
+        }),
+      );
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 401) {
+        widget.onLoggedOut();
+        return;
+      }
+
+      if (response.statusCode >= 400) {
+        throw ApiException.fromPayload(payload);
+      }
+
+      _reasonController.clear();
+      setState(() {
+        _message = payload['message'] as String?;
+        _endDate = _startDate;
+      });
+      await _refresh();
+    } catch (error) {
+      setState(() => _message = error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked;
+        if (_endDate.isBefore(picked)) {
+          _endDate = picked;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (picked != null) {
+      setState(() => _endDate = picked);
+    }
+  }
+
+  Map<String, dynamic>? get _selectedLeaveType {
+    for (final type in _leaveTypes) {
+      if (type['id'] == _selectedLeaveTypeId) {
+        return type;
+      }
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final employee = _payload?['employee'] as Map<String, dynamic>?;
+    final summary = _payload?['summary'] as Map<String, dynamic>?;
+    final selectedLeaveType = _selectedLeaveType;
+    final requiresAttachment =
+        selectedLeaveType?['requires_attachment'] as bool? ?? false;
+
+    return _MobilePageScaffold(
+      title: 'Cuti / Izin',
+      subtitle: 'Pengajuan izin, sakit, dan cuti.',
+      icon: Icons.beach_access_rounded,
+      child: _loading
+          ? const Center(child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: CircularProgressIndicator(),
+            ))
+          : Column(
+              children: [
+                _FeatureHeroCard(
+                  title: 'Ringkasan Pengajuan',
+                  value: '${summary?['approved_days'] ?? 0} hari disetujui',
+                  subtitle:
+                      '${summary?['pending_requests'] ?? 0} pengajuan masih menunggu proses approval.',
+                  icon: Icons.calendar_month_rounded,
+                  color: const Color(0xFF2DCE89),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _MiniMetricCard(
+                      label: 'Pending',
+                      value: '${summary?['pending_requests'] ?? 0}',
+                    ),
+                    _MiniMetricCard(
+                      label: 'Approved',
+                      value: '${summary?['approved_requests'] ?? 0}',
+                    ),
+                    _MiniMetricCard(
+                      label: 'Rejected',
+                      value: '${summary?['rejected_requests'] ?? 0}',
+                    ),
+                  ],
+                ),
+                if (_message != null) ...[
+                  const SizedBox(height: 12),
+                  _MessageBox(message: _message!),
+                ],
+                const SizedBox(height: 16),
+                _FormCard(
+                  title: 'Ajukan Cuti / Izin',
+                  children: [
+                    _ReadonlyField(
+                      label: 'Karyawan',
+                      value: employee?['name']?.toString() ?? '-',
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedLeaveTypeId,
+                      items: _leaveTypes
+                          .map(
+                            (type) => DropdownMenuItem<int>(
+                              value: type['id'] as int?,
+                              child: Text(type['name']?.toString() ?? '-'),
+                            ),
+                          )
+                          .toList(),
+                      decoration: InputDecoration(
+                        labelText: 'Jenis Cuti',
+                        filled: true,
+                        fillColor: const Color(0xFFF8F9FA),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (value) => setState(() => _selectedLeaveTypeId = value),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionField(
+                            label: 'Mulai',
+                            value: _dateLabel(_startDate.toIso8601String()),
+                            icon: Icons.event_available_rounded,
+                            onTap: _pickStartDate,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionField(
+                            label: 'Selesai',
+                            value: _dateLabel(_endDate.toIso8601String()),
+                            icon: Icons.event_busy_rounded,
+                            onTap: _pickEndDate,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _reasonController,
+                      minLines: 3,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Keterangan',
+                        hintText: 'Contoh: keperluan keluarga, istirahat, atau urusan pribadi.',
+                        filled: true,
+                        fillColor: const Color(0xFFF8F9FA),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    if (requiresAttachment) ...[
+                      const SizedBox(height: 12),
+                      const _MessageBox(
+                        message: 'Jenis cuti ini butuh lampiran. Versi mobile saat ini belum mendukung upload lampiran, jadi pilih jenis lain atau ajukan dari web.',
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: requiresAttachment || _submitting ? null : _submit,
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.add_rounded),
+                        label: Text(_submitting ? 'Mengirim...' : 'Buat Pengajuan'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ActivityListCard(
+                  title: 'Riwayat Cuti / Izin',
+                  emptyText: 'Belum ada riwayat cuti dari aplikasi mobile.',
+                  children: _history.map((item) {
+                    final leaveType = item['leave_type'] as Map<String, dynamic>?;
+
+                    return _HistoryItem(
+                      title: leaveType?['name']?.toString() ?? 'Cuti / Izin',
+                      subtitle:
+                          '${_dateLabel(item['start_date']?.toString())} - ${_dateLabel(item['end_date']?.toString())} • ${item['duration_days'] ?? 0} hari',
+                      status: item['status_label']?.toString() ?? '-',
+                      description: item['reason']?.toString() ?? 'Tanpa keterangan',
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class PayslipPage extends StatefulWidget {
+  const PayslipPage({
+    super.key,
+    required this.token,
+    required this.onLoggedOut,
+    this.previewMode = false,
+  });
+
+  final String token;
+  final VoidCallback onLoggedOut;
+  final bool previewMode;
+
+  @override
   State<PayslipPage> createState() => _PayslipPageState();
 }
 
 class _PayslipPageState extends State<PayslipPage> {
   bool _loading = true;
+  bool _showDemoData = false;
   String? _message;
   List<Map<String, dynamic>> _payslips = [];
   Map<String, dynamic>? _summary;
@@ -840,6 +1449,11 @@ class _PayslipPageState extends State<PayslipPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.previewMode) {
+      _showDemoData = true;
+      _loading = false;
+      return;
+    }
     _refresh();
   }
 
@@ -893,9 +1507,22 @@ class _PayslipPageState extends State<PayslipPage> {
     );
   }
 
+  List<Map<String, dynamic>> get _visiblePayslips =>
+      _showDemoData ? _demoPayslips : _payslips;
+
+  Map<String, dynamic>? get _visibleSummary =>
+      _showDemoData ? _demoPayslipSummary : _summary;
+
+  void _setDemoMode(bool enabled) {
+    setState(() => _showDemoData = enabled);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final latest = _payslips.isNotEmpty ? _payslips.first : null;
+    final payslips = _visiblePayslips;
+    final summary = _visibleSummary;
+    final latest = payslips.isNotEmpty ? payslips.first : null;
+    final canPreview = _payslips.isEmpty || _message != null;
 
     return _MobilePageScaffold(
       title: 'Slip Gaji',
@@ -908,16 +1535,31 @@ class _PayslipPageState extends State<PayslipPage> {
             )
           : Column(
               children: [
+                _PayslipDataModeCard(
+                  showDemoData: _showDemoData,
+                  canPreview: canPreview,
+                  onChanged: _setDemoMode,
+                ),
+                const SizedBox(height: 14),
                 _FeatureHeroCard(
-                  title: 'Take Home Pay Terakhir',
+                  title: _showDemoData
+                      ? 'Simulasi Take Home Pay'
+                      : 'Take Home Pay Terakhir',
                   value: latest == null
                       ? 'Belum ada slip'
                       : _rupiah(latest['net_salary']),
                   subtitle: latest == null
-                      ? 'Slip gaji akan tampil saat payroll dibuat.'
+                      ? 'Slip gaji akan tampil setelah payroll tersedia.'
+                      : _showDemoData
+                      ? 'Mode demo aktif untuk preview UI payroll mobile.'
                       : _periodLabel(latest),
                   icon: Icons.payments_rounded,
-                  color: const Color(0xFF344767),
+                  color: _navy,
+                ),
+                const SizedBox(height: 14),
+                _PayslipInsightCard(
+                  latestPayslip: latest,
+                  isDemoMode: _showDemoData,
                 ),
                 if (_message != null) ...[
                   const SizedBox(height: 12),
@@ -925,12 +1567,15 @@ class _PayslipPageState extends State<PayslipPage> {
                 ],
                 const SizedBox(height: 14),
                 _PayslipSummaryCard(
-                  total: (_summary?['total'] as int?) ?? _payslips.length,
-                  latestNetSalary: _summary?['latest_net_salary'],
+                  total: (summary?['total'] as int?) ?? payslips.length,
+                  latestNetSalary: summary?['latest_net_salary'],
+                  averageNetSalary: summary?['average_net_salary'],
+                  latestAllowance: summary?['latest_total_allowance'],
                 ),
                 const SizedBox(height: 18),
                 _PayslipListSection(
-                  payslips: _payslips,
+                  payslips: payslips,
+                  isDemoMode: _showDemoData,
                   onTap: _showPayslipDetail,
                 ),
               ],
@@ -939,17 +1584,226 @@ class _PayslipPageState extends State<PayslipPage> {
   }
 }
 
+class _PayslipDataModeCard extends StatelessWidget {
+  const _PayslipDataModeCard({
+    required this.showDemoData,
+    required this.canPreview,
+    required this.onChanged,
+  });
+
+  final bool showDemoData;
+  final bool canPreview;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE7F8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, color: _primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  showDemoData ? 'Mode simulasi aktif' : 'Data payroll live',
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  canPreview
+                      ? 'Aktifkan simulasi untuk melihat preview slip gaji mobile.'
+                      : 'Anda bisa pindah ke simulasi kapan saja untuk cek tampilan.' ,
+                  style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(value: showDemoData, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayslipInsightCard extends StatelessWidget {
+  const _PayslipInsightCard({
+    required this.latestPayslip,
+    required this.isDemoMode,
+  });
+
+  final Map<String, dynamic>? latestPayslip;
+  final bool isDemoMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final allowances =
+        latestPayslip?['allowances'] as Map<String, dynamic>? ?? {};
+    final deductions =
+        latestPayslip?['deductions'] as Map<String, dynamic>? ?? {};
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF6F8FC),
+            isDemoMode ? const Color(0xFFFFF1FB) : const Color(0xFFF1F7FF),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE4EAF3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Snapshot Payroll',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDemoMode
+                      ? const Color(0xFFFFE7F8)
+                      : const Color(0xFFE8F7EF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  isDemoMode ? 'Demo' : 'Live',
+                  style: TextStyle(
+                    color: isDemoMode ? _primary : const Color(0xFF1F8F5F),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _PayslipHighlightPill(
+                  label: 'Tunjangan',
+                  value: _rupiah(allowances['total']),
+                  color: const Color(0xFF11CDEF),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PayslipHighlightPill(
+                  label: 'Potongan',
+                  value: _rupiah(deductions['total']),
+                  color: const Color(0xFFFB6340),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayslipHighlightPill extends StatelessWidget {
+  const _PayslipHighlightPill({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PayslipSummaryCard extends StatelessWidget {
   const _PayslipSummaryCard({
     required this.total,
     required this.latestNetSalary,
+    required this.averageNetSalary,
+    required this.latestAllowance,
   });
 
   final int total;
   final dynamic latestNetSalary;
+  final dynamic averageNetSalary;
+  final dynamic latestAllowance;
 
   @override
   Widget build(BuildContext context) {
+    final metrics = [
+      _PayslipMetric(
+        label: 'Total Slip',
+        value: '$total',
+        icon: Icons.folder_copy_rounded,
+        color: const Color(0xFF11CDEF),
+      ),
+      _PayslipMetric(
+        label: 'Terakhir',
+        value: _rupiah(latestNetSalary),
+        icon: Icons.account_balance_wallet_rounded,
+        color: const Color(0xFF2DCE89),
+      ),
+      _PayslipMetric(
+        label: 'Rata-rata',
+        value: _rupiah(averageNetSalary),
+        icon: Icons.stacked_line_chart_rounded,
+        color: const Color(0xFF5E72E4),
+      ),
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -958,26 +1812,22 @@ class _PayslipSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFFE9ECEF)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _PayslipMetric(
-              label: 'Total Slip',
-              value: '$total',
-              icon: Icons.folder_copy_rounded,
-              color: const Color(0xFF11CDEF),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _PayslipMetric(
-              label: 'Terakhir',
-              value: _rupiah(latestNetSalary),
-              icon: Icons.account_balance_wallet_rounded,
-              color: const Color(0xFF2DCE89),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = constraints.maxWidth >= 520
+              ? (constraints.maxWidth - 24) / 3
+              : (constraints.maxWidth - 12) / 2;
+
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: metrics
+                .map(
+                  (metric) => SizedBox(width: itemWidth, child: metric),
+                )
+                .toList(),
+          );
+        },
       ),
     );
   }
@@ -1037,9 +1887,14 @@ class _PayslipMetric extends StatelessWidget {
 }
 
 class _PayslipListSection extends StatelessWidget {
-  const _PayslipListSection({required this.payslips, required this.onTap});
+  const _PayslipListSection({
+    required this.payslips,
+    required this.isDemoMode,
+    required this.onTap,
+  });
 
   final List<Map<String, dynamic>> payslips;
+  final bool isDemoMode;
   final ValueChanged<Map<String, dynamic>> onTap;
 
   @override
@@ -1067,7 +1922,7 @@ class _PayslipListSection extends StatelessWidget {
               ),
             ),
             Text(
-              '${payslips.length} data',
+              isDemoMode ? 'Preview ${payslips.length} slip' : '${payslips.length} data',
               style: const TextStyle(
                 color: _muted,
                 fontSize: 16,
@@ -1435,41 +2290,44 @@ class _MobilePageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE7F8),
-                  borderRadius: BorderRadius.circular(18),
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE7F8),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(icon, color: _primary, size: 28),
                 ),
-                child: Icon(icon, color: _primary, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(color: _ink, fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(subtitle, style: const TextStyle(color: _muted)),
-                  ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(color: _ink, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(subtitle, style: const TextStyle(color: _muted)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          child,
-        ],
+              ],
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -1582,20 +2440,17 @@ class _ReadonlyField extends StatelessWidget {
   const _ReadonlyField({
     required this.label,
     required this.value,
-    this.minLines = 1,
   });
 
   final String label;
   final String value;
-  final int minLines;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       initialValue: value,
       readOnly: true,
-      minLines: minLines,
-      maxLines: minLines,
+      maxLines: 1,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
@@ -1604,6 +2459,226 @@ class _ReadonlyField extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
+      ),
+    );
+  }
+}
+
+class _ActionField extends StatelessWidget {
+  const _ActionField({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: const Color(0xFFF8F9FA),
+          prefixIcon: Icon(icon),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        child: Text(value, style: const TextStyle(color: _ink)),
+      ),
+    );
+  }
+}
+
+class _MiniMetricCard extends StatelessWidget {
+  const _MiniMetricCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 104,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityListCard extends StatelessWidget {
+  const _ActivityListCard({
+    required this.title,
+    required this.emptyText,
+    required this.children,
+  });
+
+  final String title;
+  final String emptyText;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE9ECEF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (children.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(Icons.inbox_rounded, color: _muted),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    emptyText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _muted),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryItem extends StatelessWidget {
+  const _HistoryItem({
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.description,
+  });
+
+  final String title;
+  final String subtitle;
+  final String status;
+  final String description;
+
+  Color get _badgeColor {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('setujui') || normalized.contains('approve')) {
+      return const Color(0xFFE8FFF3);
+    }
+    if (normalized.contains('tolak') || normalized.contains('reject')) {
+      return const Color(0xFFFFECEC);
+    }
+
+    return const Color(0xFFFFF7E8);
+  }
+
+  Color get _badgeTextColor {
+    final normalized = status.toLowerCase();
+    if (normalized.contains('setujui') || normalized.contains('approve')) {
+      return const Color(0xFF18794E);
+    }
+    if (normalized.contains('tolak') || normalized.contains('reject')) {
+      return const Color(0xFFC0392B);
+    }
+
+    return const Color(0xFF9A6700);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _badgeColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: _badgeTextColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: _muted)),
+          const SizedBox(height: 8),
+          Text(description, style: const TextStyle(color: _ink, height: 1.4)),
+        ],
       ),
     );
   }
