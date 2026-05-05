@@ -55,6 +55,7 @@ class MobileLeaveController extends LeaveController
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string'],
+            'attachment' => ['nullable', 'file', 'max:2048', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
         $leaveType = LeaveType::query()
@@ -62,10 +63,14 @@ class MobileLeaveController extends LeaveController
             ->whereKey($data['leave_type_id'])
             ->firstOrFail();
 
-        if ($leaveType->wajib_lampiran) {
+        if ($leaveType->wajib_lampiran && ! $request->hasFile('attachment')) {
             throw ValidationException::withMessages([
-                'leave_type_id' => 'Jenis cuti ini membutuhkan lampiran dan belum didukung dari aplikasi mobile.',
+                'attachment' => 'Lampiran bukti wajib diunggah untuk jenis cuti ini.',
             ]);
+        }
+
+        if ($request->hasFile('attachment')) {
+            $data['attachment_path'] = $request->file('attachment')->store('leave-attachments', 'public');
         }
 
         $leave = Leave::create(array_merge($data, [
@@ -146,6 +151,8 @@ class MobileLeaveController extends LeaveController
             'status_label' => ucfirst($leave->status ?? '-'),
             'reason' => $leave->reason,
             'requires_attachment' => (bool) ($leave->leaveType?->wajib_lampiran ?? false),
+            'attachment_name' => $leave->attachment_path ? basename($leave->attachment_path) : null,
+            'attachment_url' => $leave->attachment_path ? asset('storage/'.$leave->attachment_path) : null,
         ];
     }
 }

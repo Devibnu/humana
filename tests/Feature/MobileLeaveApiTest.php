@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\RolesTableSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -98,6 +99,43 @@ class MobileLeaveApiTest extends TestCase
         $this->getJson('/api/mobile/leaves')->assertForbidden();
     }
 
+    public function test_employee_can_submit_required_attachment_leave_from_mobile(): void
+    {
+        $tenant = $this->makeTenant();
+        [$user, $employee] = $this->makeEmployeeUser($tenant, 'proof');
+        $sickType = $this->makeLeaveType($tenant, 'Cuti Sakit', true);
+
+        Sanctum::actingAs($user);
+
+        $this->post('/api/mobile/leaves', [
+            'leave_type_id' => $sickType->id,
+            'start_date' => '2026-07-10',
+            'end_date' => '2026-07-10',
+            'reason' => 'Kontrol dokter',
+            'attachment' => UploadedFile::fake()->image('surat-dokter.jpg'),
+        ], [
+            'Accept' => 'application/json',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.attachment_url', fn ($value) => is_string($value) && str_contains($value, '/storage/leave-attachments/'));
+
+        $this->assertDatabaseHas('leaves', [
+            'tenant_id' => $tenant->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $sickType->id,
+            'reason' => 'Kontrol dokter',
+        ]);
+
+        $leave = Leave::query()
+            ->where('employee_id', $employee->id)
+            ->where('leave_type_id', $sickType->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($leave?->attachment_path);
+    }
+
     protected function makeTenant(): Tenant
     {
         return Tenant::create([
@@ -133,13 +171,13 @@ class MobileLeaveApiTest extends TestCase
         return [$user, $employee];
     }
 
-    protected function makeLeaveType(Tenant $tenant, string $name): LeaveType
+    protected function makeLeaveType(Tenant $tenant, string $name, bool $requiresAttachment = false): LeaveType
     {
         return LeaveType::create([
             'tenant_id' => $tenant->id,
             'name' => $name,
             'is_paid' => true,
-            'wajib_lampiran' => false,
+            'wajib_lampiran' => $requiresAttachment,
             'wajib_persetujuan' => true,
             'alur_persetujuan' => 'single',
         ]);

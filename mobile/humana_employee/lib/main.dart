@@ -5,19 +5,201 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String apiBaseUrl = 'https://humana.ibnuapps.cloud/api/mobile';
 const bool _showPayslipPreview = bool.fromEnvironment('SHOW_PAYSLIP_DEMO');
+const String _previewScreen = String.fromEnvironment('PREVIEW_SCREEN');
 const Color _primary = Color(0xFFcb0c9f);
 const Color _ink = Color(0xFF27375F);
 const Color _muted = Color(0xFF8392AB);
 const Color _surface = Colors.white;
 const Color _navy = Color(0xFF344767);
+
+final Map<String, dynamic> _demoLeavePayload = {
+  'employee': {
+    'id': 12,
+    'name': 'Raka Pratama',
+    'employee_code': 'EMP-1002',
+  },
+  'summary': {
+    'total': 3,
+    'pending_requests': 1,
+    'approved_requests': 2,
+    'rejected_requests': 0,
+    'approved_days': 4,
+  },
+  'leave_types': [
+    {
+      'id': 1,
+      'name': 'Cuti Tahunan',
+      'code': 'cuti-tahunan',
+      'is_paid': true,
+      'requires_attachment': false,
+      'requires_approval': true,
+      'approval_flow': 'single',
+    },
+    {
+      'id': 2,
+      'name': 'Cuti Sakit',
+      'code': 'cuti-sakit',
+      'is_paid': true,
+      'requires_attachment': true,
+      'requires_approval': true,
+      'approval_flow': 'single',
+    },
+    {
+      'id': 3,
+      'name': 'Izin Pribadi',
+      'code': 'izin-pribadi',
+      'is_paid': false,
+      'requires_attachment': false,
+      'requires_approval': true,
+      'approval_flow': 'single',
+    },
+  ],
+  'data': [
+    {
+      'id': 31,
+      'leave_type': {
+        'id': 2,
+        'name': 'Cuti Sakit',
+        'code': 'cuti-sakit',
+      },
+      'start_date': '2026-05-03',
+      'end_date': '2026-05-03',
+      'duration_days': 1,
+      'status': 'pending',
+      'status_label': 'Pending',
+      'reason': 'Demam tinggi dan istirahat dokter',
+      'requires_attachment': true,
+      'attachment_name': 'surat-dokter.pdf',
+      'attachment_url': 'https://humana.ibnuapps.cloud/storage/leave-attachments/surat-dokter.pdf',
+    },
+    {
+      'id': 30,
+      'leave_type': {
+        'id': 1,
+        'name': 'Cuti Tahunan',
+        'code': 'cuti-tahunan',
+      },
+      'start_date': '2026-04-21',
+      'end_date': '2026-04-23',
+      'duration_days': 3,
+      'status': 'approved',
+      'status_label': 'Approved',
+      'reason': 'Libur keluarga',
+      'requires_attachment': false,
+      'attachment_name': null,
+      'attachment_url': null,
+    },
+  ],
+};
+
+final Map<String, dynamic> _demoAttendanceStatus = {
+  'employee': {
+    'name': 'Raka Pratama',
+    'employee_code': 'EMP-1002',
+  },
+  'work_location': {
+    'name': 'Humana Office HQ',
+    'radius': 150,
+  },
+  'work_schedule': {
+    'name': 'Office',
+    'jam_masuk': '08:30',
+    'jam_pulang': '17:30',
+  },
+  'today_attendance': {
+    'date': '2026-05-05',
+    'check_in': '08:27',
+    'check_out': '17:34',
+    'distance_meters': 22,
+    'late_minutes': 0,
+    'early_leave_minutes': 0,
+    'status': 'present',
+  },
+  'next_action': 'complete',
+};
+
+final List<Map<String, dynamic>> _demoAttendanceHistory = [
+  {
+    'date': '2026-05-05',
+    'check_in': '08:27',
+    'check_out': '17:34',
+    'distance_meters': 22,
+    'late_minutes': 0,
+    'early_leave_minutes': 0,
+    'status': 'present',
+  },
+  {
+    'date': '2026-05-04',
+    'check_in': '08:39',
+    'check_out': '17:31',
+    'distance_meters': 18,
+    'late_minutes': 9,
+    'early_leave_minutes': 0,
+    'status': 'present',
+  },
+  {
+    'date': '2026-05-03',
+    'check_in': '08:31',
+    'check_out': '17:10',
+    'distance_meters': 25,
+    'late_minutes': 1,
+    'early_leave_minutes': 20,
+    'status': 'present',
+  },
+];
+
+final Map<String, dynamic> _demoOvertimePayload = {
+  'employee': {
+    'name': 'Raka Pratama',
+    'employee_code': 'EMP-1002',
+  },
+  'settings': {
+    'submission_role': 'karyawan',
+  },
+  'summary': {
+    'total_hours': 9,
+    'pending': 1,
+    'approved': 2,
+    'rejected': 0,
+  },
+  'data': [
+    {
+      'tanggal': '2026-05-02',
+      'waktu_mulai': '18:00',
+      'waktu_selesai': '21:00',
+      'durasi_jam': 3,
+      'status': 'pending',
+      'status_label': 'Pending',
+      'alasan': 'Closing payroll dan verifikasi final slip gaji.',
+    },
+    {
+      'tanggal': '2026-04-28',
+      'waktu_mulai': '18:30',
+      'waktu_selesai': '22:30',
+      'durasi_jam': 4,
+      'status': 'approved',
+      'status_label': 'Approved',
+      'alasan': 'Support rekap absensi akhir bulan.',
+    },
+    {
+      'tanggal': '2026-04-17',
+      'waktu_mulai': '19:00',
+      'waktu_selesai': '21:00',
+      'durasi_jam': 2,
+      'status': 'approved',
+      'status_label': 'Approved',
+      'alasan': 'Maintenance data attendance dan sinkron shift.',
+    },
+  ],
+};
 
 final List<Map<String, dynamic>> _demoPayslips = [
   {
@@ -293,7 +475,43 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_showPayslipPreview) {
-      return const PayslipPage(
+      return const EmployeeMobileShell(
+        token: 'demo-preview-token',
+        onLoggedOut: _noop,
+        previewMode: true,
+        initialIndex: 3,
+      );
+    }
+
+    if (_previewScreen == 'leave') {
+      return const EmployeeMobileShell(
+        token: 'demo-preview-token',
+        onLoggedOut: _noop,
+        previewMode: true,
+        initialIndex: 2,
+      );
+    }
+
+    if (_previewScreen == 'attendance') {
+      return const EmployeeMobileShell(
+        token: 'demo-preview-token',
+        onLoggedOut: _noop,
+        previewMode: true,
+        initialIndex: 0,
+      );
+    }
+
+    if (_previewScreen == 'overtime') {
+      return const EmployeeMobileShell(
+        token: 'demo-preview-token',
+        onLoggedOut: _noop,
+        previewMode: true,
+        initialIndex: 1,
+      );
+    }
+
+    if (_previewScreen == 'employee-shell') {
+      return const EmployeeMobileShell(
         token: 'demo-preview-token',
         onLoggedOut: _noop,
         previewMode: true,
@@ -320,25 +538,51 @@ class EmployeeMobileShell extends StatefulWidget {
     super.key,
     required this.token,
     required this.onLoggedOut,
+    this.previewMode = false,
+    this.initialIndex = 0,
   });
 
   final String token;
   final VoidCallback onLoggedOut;
+  final bool previewMode;
+  final int initialIndex;
 
   @override
   State<EmployeeMobileShell> createState() => _EmployeeMobileShellState();
 }
 
 class _EmployeeMobileShellState extends State<EmployeeMobileShell> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      AttendanceHomePage(token: widget.token, onLoggedOut: widget.onLoggedOut),
-      OvertimePage(token: widget.token, onLoggedOut: widget.onLoggedOut),
-      LeaveRequestPage(token: widget.token, onLoggedOut: widget.onLoggedOut),
-      PayslipPage(token: widget.token, onLoggedOut: widget.onLoggedOut),
+      AttendanceHomePage(
+        token: widget.token,
+        onLoggedOut: widget.onLoggedOut,
+        previewMode: widget.previewMode,
+      ),
+      OvertimePage(
+        token: widget.token,
+        onLoggedOut: widget.onLoggedOut,
+        previewMode: widget.previewMode,
+      ),
+      LeaveRequestPage(
+        token: widget.token,
+        onLoggedOut: widget.onLoggedOut,
+        previewMode: widget.previewMode,
+      ),
+      PayslipPage(
+        token: widget.token,
+        onLoggedOut: widget.onLoggedOut,
+        previewMode: widget.previewMode,
+      ),
       ProfilePage(onLoggedOut: widget.onLoggedOut),
     ];
 
@@ -365,12 +609,12 @@ class _EmployeeMobileShellState extends State<EmployeeMobileShell> {
           NavigationDestination(
             icon: Icon(Icons.beach_access_outlined),
             selectedIcon: Icon(Icons.beach_access_rounded),
-            label: 'Cuti',
+            label: 'Cuti/Izin',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long_rounded),
-            label: 'Gaji',
+            label: 'Slip Gaji',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
@@ -523,10 +767,12 @@ class AttendanceHomePage extends StatefulWidget {
     super.key,
     required this.token,
     required this.onLoggedOut,
+    this.previewMode = false,
   });
 
   final String token;
   final VoidCallback onLoggedOut;
+  final bool previewMode;
 
   @override
   State<AttendanceHomePage> createState() => _AttendanceHomePageState();
@@ -548,7 +794,20 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
   @override
   void initState() {
     super.initState();
+    if (widget.previewMode) {
+      _loadPreviewData();
+      return;
+    }
     _refresh();
+  }
+
+  void _loadPreviewData() {
+    setState(() {
+      _status = _demoAttendanceStatus;
+      _history = _demoAttendanceHistory;
+      _message = 'Mode preview HRIS aktif. Absensi, cuti/izin, dan slip gaji tampil dalam satu aplikasi mobile.';
+      _loading = false;
+    });
   }
 
   Future<void> _refresh() async {
@@ -753,10 +1012,12 @@ class OvertimePage extends StatefulWidget {
     super.key,
     required this.token,
     required this.onLoggedOut,
+    this.previewMode = false,
   });
 
   final String token;
   final VoidCallback onLoggedOut;
+  final bool previewMode;
 
   @override
   State<OvertimePage> createState() => _OvertimePageState();
@@ -782,6 +1043,10 @@ class _OvertimePageState extends State<OvertimePage> {
   @override
   void initState() {
     super.initState();
+    if (widget.previewMode) {
+      _loadPreviewData();
+      return;
+    }
     _refresh();
   }
 
@@ -789,6 +1054,24 @@ class _OvertimePageState extends State<OvertimePage> {
   void dispose() {
     _reasonController.dispose();
     super.dispose();
+  }
+
+  void _loadPreviewData() {
+    final history = (_demoOvertimePayload['data'] as List<dynamic>)
+        .map((item) => item as Map<String, dynamic>)
+        .toList();
+
+    _reasonController.text = 'Closing payroll dan support final checking HRIS.';
+
+    setState(() {
+      _payload = _demoOvertimePayload;
+      _history = history;
+      _selectedDate = DateTime(2026, 5, 2);
+      _startTime = const TimeOfDay(hour: 18, minute: 0);
+      _endTime = const TimeOfDay(hour: 21, minute: 0);
+      _message = 'Mode preview HRIS aktif. Pengajuan lembur tidak dikirim ke server.';
+      _loading = false;
+    });
   }
 
   Future<void> _refresh() async {
@@ -1074,10 +1357,12 @@ class LeaveRequestPage extends StatefulWidget {
     super.key,
     required this.token,
     required this.onLoggedOut,
+    this.previewMode = false,
   });
 
   final String token;
   final VoidCallback onLoggedOut;
+  final bool previewMode;
 
   @override
   State<LeaveRequestPage> createState() => _LeaveRequestPageState();
@@ -1094,6 +1379,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
   List<Map<String, dynamic>> _history = [];
   List<Map<String, dynamic>> _leaveTypes = [];
   int? _selectedLeaveTypeId;
+  PlatformFile? _selectedAttachment;
 
   Map<String, String> get _headers => {
     'Accept': 'application/json',
@@ -1104,6 +1390,10 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.previewMode) {
+      _loadPreviewData();
+      return;
+    }
     _refresh();
   }
 
@@ -1155,11 +1445,48 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     }
   }
 
+  void _loadPreviewData() {
+    final leaveTypes = (_demoLeavePayload['leave_types'] as List<dynamic>)
+        .map((item) => item as Map<String, dynamic>)
+        .toList();
+
+    _reasonController.text = 'Istirahat sesuai anjuran dokter dan kontrol ulang.';
+
+    setState(() {
+      _payload = _demoLeavePayload;
+      _leaveTypes = leaveTypes;
+      _history = (_demoLeavePayload['data'] as List<dynamic>)
+          .map((item) => item as Map<String, dynamic>)
+          .toList();
+      _selectedLeaveTypeId = 2;
+      _selectedAttachment = PlatformFile(
+        name: 'surat-dokter.pdf',
+        size: 348000,
+        bytes: Uint8List.fromList(List<int>.filled(16, 1)),
+      );
+      _startDate = DateTime(2026, 5, 6);
+      _endDate = DateTime(2026, 5, 6);
+      _message = 'Mode preview mobile aktif. Form ini tidak mengirim data ke server.';
+      _loading = false;
+    });
+  }
+
   Future<void> _submit() async {
+    if (widget.previewMode) {
+      setState(() {
+        _message = 'Preview mobile aktif. Upload dan submit live tetap menggunakan API produksi.';
+      });
+      return;
+    }
+
     if (_selectedLeaveTypeId == null) {
       setState(() => _message = 'Pilih jenis cuti terlebih dahulu.');
       return;
     }
+
+    final selectedLeaveType = _selectedLeaveType;
+    final requiresAttachment =
+        selectedLeaveType?['requires_attachment'] as bool? ?? false;
 
     if (_endDate.isBefore(_startDate)) {
       setState(() => _message = 'Tanggal selesai tidak boleh sebelum tanggal mulai.');
@@ -1171,22 +1498,49 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
       return;
     }
 
+    if (requiresAttachment && _selectedAttachment == null) {
+      setState(() => _message = 'Lampiran wajib dipilih untuk jenis cuti ini.');
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _message = null;
     });
 
     try {
-      final response = await http.post(
+      final request = http.MultipartRequest(
+        'POST',
         Uri.parse('$apiBaseUrl/leaves'),
-        headers: _headers,
-        body: jsonEncode({
-          'leave_type_id': _selectedLeaveTypeId,
+      )
+        ..headers.addAll({
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${widget.token}',
+        })
+        ..fields.addAll({
+          'leave_type_id': '$_selectedLeaveTypeId',
           'start_date': _startDate.toIso8601String(),
           'end_date': _endDate.toIso8601String(),
           'reason': _reasonController.text.trim(),
-        }),
-      );
+        });
+
+      if (_selectedAttachment != null) {
+        final bytes = _selectedAttachment!.bytes;
+        if (bytes == null) {
+          throw Exception('Lampiran tidak dapat dibaca. Pilih ulang file.');
+        }
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'attachment',
+            bytes,
+            filename: _selectedAttachment!.name,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 401) {
@@ -1202,6 +1556,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
       setState(() {
         _message = payload['message'] as String?;
         _endDate = _startDate;
+        _selectedAttachment = null;
       });
       await _refresh();
     } catch (error) {
@@ -1242,6 +1597,33 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     if (picked != null) {
       setState(() => _endDate = picked);
     }
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _selectedAttachment = result.files.single);
+    }
+  }
+
+  void _clearAttachment() {
+    setState(() => _selectedAttachment = null);
+  }
+
+  String _fileSizeLabel(int bytes) {
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    if (bytes >= 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    }
+
+    return '$bytes B';
   }
 
   Map<String, dynamic>? get _selectedLeaveType {
@@ -1372,18 +1754,22 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                         ),
                       ),
                     ),
-                    if (requiresAttachment) ...[
-                      const SizedBox(height: 12),
-                      const _MessageBox(
-                        message: 'Jenis cuti ini butuh lampiran. Versi mobile saat ini belum mendukung upload lampiran, jadi pilih jenis lain atau ajukan dari web.',
-                      ),
-                    ],
+                    const SizedBox(height: 12),
+                    _AttachmentPickerCard(
+                      selectedFileName: _selectedAttachment?.name,
+                      selectedFileSize: _selectedAttachment == null
+                          ? null
+                          : _fileSizeLabel(_selectedAttachment!.size),
+                      requiredAttachment: requiresAttachment,
+                      onPick: _pickAttachment,
+                      onClear: _selectedAttachment == null ? null : _clearAttachment,
+                    ),
                     const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: FilledButton.icon(
-                        onPressed: requiresAttachment || _submitting ? null : _submit,
+                        onPressed: _submitting ? null : _submit,
                         icon: _submitting
                             ? const SizedBox(
                                 width: 18,
@@ -1402,13 +1788,17 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                   emptyText: 'Belum ada riwayat cuti dari aplikasi mobile.',
                   children: _history.map((item) {
                     final leaveType = item['leave_type'] as Map<String, dynamic>?;
+                    final attachmentName = item['attachment_name']?.toString();
+                    final reason = item['reason']?.toString() ?? 'Tanpa keterangan';
 
                     return _HistoryItem(
                       title: leaveType?['name']?.toString() ?? 'Cuti / Izin',
                       subtitle:
                           '${_dateLabel(item['start_date']?.toString())} - ${_dateLabel(item['end_date']?.toString())} • ${item['duration_days'] ?? 0} hari',
                       status: item['status_label']?.toString() ?? '-',
-                      description: item['reason']?.toString() ?? 'Tanpa keterangan',
+                      description: attachmentName == null
+                          ? reason
+                          : '$reason • Lampiran tersedia',
                     );
                   }).toList(),
                 ),
@@ -2499,6 +2889,90 @@ class _ActionField extends StatelessWidget {
   }
 }
 
+class _AttachmentPickerCard extends StatelessWidget {
+  const _AttachmentPickerCard({
+    required this.selectedFileName,
+    required this.selectedFileSize,
+    required this.requiredAttachment,
+    required this.onPick,
+    this.onClear,
+  });
+
+  final String? selectedFileName;
+  final String? selectedFileSize;
+  final bool requiredAttachment;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Lampiran Bukti',
+                  style: TextStyle(color: _ink, fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (requiredAttachment)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4E5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Wajib',
+                    style: TextStyle(
+                      color: Color(0xFF7A4B00),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selectedFileName == null
+                ? 'Format PDF/JPG/PNG, maksimal 2 MB.'
+                : '$selectedFileName${selectedFileSize == null ? '' : ' • $selectedFileSize'}',
+            style: const TextStyle(color: _muted),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onPick,
+                icon: const Icon(Icons.attach_file_rounded),
+                label: Text(selectedFileName == null ? 'Pilih File' : 'Ganti File'),
+              ),
+              if (onClear != null)
+                TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Hapus'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MiniMetricCard extends StatelessWidget {
   const _MiniMetricCard({required this.label, required this.value});
 
@@ -2808,7 +3282,6 @@ class AttendanceCameraPage extends StatefulWidget {
 
 class _AttendanceCameraPageState extends State<AttendanceCameraPage> {
   CameraController? _controller;
-  late final FaceDetector _faceDetector;
   bool _initializing = true;
   bool _capturing = false;
   String? _message;
@@ -2816,12 +3289,6 @@ class _AttendanceCameraPageState extends State<AttendanceCameraPage> {
   @override
   void initState() {
     super.initState();
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        performanceMode: FaceDetectorMode.accurate,
-        enableContours: true,
-      ),
-    );
     _initCamera();
   }
 
@@ -2897,40 +3364,11 @@ class _AttendanceCameraPageState extends State<AttendanceCameraPage> {
   Future<String?> _validateFace(XFile file) async {
     final bytes = await File(file.path).readAsBytes();
     final image = await _decodeImage(bytes);
-    final faces = await _faceDetector.processImage(
-      InputImage.fromFilePath(file.path),
-    );
-
-    if (faces.isEmpty) {
-      return 'Wajah tidak terdeteksi. Hadapkan wajah ke kamera.';
-    }
-
-    if (faces.length > 1) {
-      return 'Terdeteksi lebih dari satu wajah.';
-    }
-
-    final face = faces.first.boundingBox;
     final width = image.width.toDouble();
     final height = image.height.toDouble();
-    final centerX = face.left + face.width / 2;
-    final centerY = face.top + face.height / 2;
 
-    if (face.width < width * 0.24 || face.height < height * 0.22) {
-      return 'Wajah terlalu jauh. Dekatkan wajah ke kamera.';
-    }
-
-    if (face.left < width * 0.04 ||
-        face.right > width * 0.96 ||
-        face.top < height * 0.04 ||
-        face.bottom > height * 0.94) {
-      return 'Wajah terpotong atau terlalu pinggir.';
-    }
-
-    if (centerX < width * 0.28 ||
-        centerX > width * 0.72 ||
-        centerY < height * 0.22 ||
-        centerY > height * 0.72) {
-      return 'Posisikan wajah di tengah frame.';
+    if (width < 640 || height < 640) {
+      return 'Foto terlalu kecil. Dekatkan wajah ke kamera.';
     }
 
     return null;
@@ -2945,7 +3383,6 @@ class _AttendanceCameraPageState extends State<AttendanceCameraPage> {
   @override
   void dispose() {
     _controller?.dispose();
-    _faceDetector.close();
     super.dispose();
   }
 
