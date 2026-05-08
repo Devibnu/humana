@@ -20,6 +20,8 @@ class Payroll extends Model
         'allowance_transport',
         'allowance_meal',
         'allowance_health',
+        'allowance_thr',
+        'allowance_other',
         'overtime_pay',
         'overtime_note',
         'deduction_tax',
@@ -46,12 +48,19 @@ class Payroll extends Model
         return $this->belongsTo(DeductionRule::class);
     }
 
+    public function items()
+    {
+        return $this->hasMany(PayrollItem::class);
+    }
+
     protected $casts = [
         'monthly_salary' => 'decimal:2',
         'daily_wage' => 'decimal:2',
         'allowance_transport' => 'decimal:2',
         'allowance_meal' => 'decimal:2',
         'allowance_health' => 'decimal:2',
+        'allowance_thr' => 'decimal:2',
+        'allowance_other' => 'decimal:2',
         'overtime_pay' => 'decimal:2',
         'deduction_tax' => 'decimal:2',
         'deduction_bpjs' => 'decimal:2',

@@ -89,6 +89,18 @@
                         <input type="number" name="allowance_health" class="form-control @error('allowance_health') is-invalid @enderror" value="{{ old('allowance_health', $payroll?->allowance_health) }}" placeholder="0" min="0" step="0.01">
                         @error('allowance_health')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">THR (Rp)</label>
+                        <input type="number" name="allowance_thr" class="form-control @error('allowance_thr') is-invalid @enderror" value="{{ old('allowance_thr', $payroll?->allowance_thr) }}" placeholder="0" min="0" step="0.01">
+                        @error('allowance_thr')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Tunjangan Lainnya (Rp)</label>
+                        <input type="number" name="allowance_other" class="form-control @error('allowance_other') is-invalid @enderror" value="{{ old('allowance_other', $payroll?->allowance_other) }}" placeholder="0" min="0" step="0.01">
+                        @error('allowance_other')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
                 </div>
             </div>
         </div>

@@ -301,6 +301,14 @@
           <span class="nav-link-text ms-1">Payroll</span>
         </a>
       </li>
+      <li class="nav-item pb-2">
+        <a class="nav-link {{ Request::is('payroll/policies') || Request::is('payroll/policies/*') ? 'active' : '' }}" href="{{ route('payroll.policies.index') }}" title="Kelola kebijakan payroll" data-testid="sidebar-menu-payroll-policies" data-bs-toggle="tooltip">
+          <div class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
+            <i class="fas fa-sliders-h text-sm {{ Request::is('payroll/policies') || Request::is('payroll/policies/*') ? 'text-white' : 'text-dark' }}" aria-hidden="true"></i>
+          </div>
+          <span class="nav-link-text ms-1">Payroll Policy</span>
+        </a>
+      </li>
       @endif
       @if(hasMenuAccess('payroll.reports'))
       <li class="nav-item pb-2">

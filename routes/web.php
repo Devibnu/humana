@@ -26,6 +26,7 @@ use App\Http\Controllers\LeavesAnomalyResolutionExportController;
 use App\Http\Controllers\MyPayslipController;
 use App\Http\Controllers\OwnerTenantController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\PayrollPolicyController;
 use App\Http\Controllers\PayrollReportController;
 use App\Http\Controllers\AbsenceRuleController;
 use App\Http\Controllers\PositionController;
@@ -77,6 +78,7 @@ Route::group(['middleware' => 'auth'], function () {
 	Route::post('payroll/settings', [PayrollController::class, 'updateSettings'])->middleware('menu_access:payroll')->name('payroll.settings.update');
 	Route::get('payroll/generate', [PayrollController::class, 'generateForm'])->middleware('menu_access:payroll')->name('payroll.generate');
 	Route::post('payroll/generate', [PayrollController::class, 'generate'])->middleware('menu_access:payroll')->name('payroll.generate.store');
+	Route::resource('payroll/policies', PayrollPolicyController::class)->middleware('menu_access:payroll')->names('payroll.policies')->except('show');
 	Route::get('payroll/create', [PayrollController::class, 'create'])->middleware('menu_access:payroll')->name('payroll.create');
 	Route::post('payroll', [PayrollController::class, 'store'])->middleware('menu_access:payroll')->name('payroll.store');
 	Route::get('payroll/{payroll}', [PayrollController::class, 'show'])->middleware('menu_access:payroll')->name('payroll.show');

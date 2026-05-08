@@ -13,6 +13,7 @@ use App\Models\PayrollSetting;
 use App\Models\Tenant;
 use App\Services\PayrollAttendanceCalculationService;
 use App\Services\PayrollOvertimeCalculationService;
+use App\Services\PayrollPolicyCalculationService;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -281,7 +282,8 @@ class PayrollController extends Controller
             }
 
             $payload = $this->buildGeneratedPayrollPayload($employee, $template, $rule, $period);
-            Payroll::create($payload);
+            $payroll = Payroll::create($payload);
+            $this->applyPayrollPolicyItems($payroll, $employee, $template);
             $created++;
         }
 
@@ -356,6 +358,7 @@ class PayrollController extends Controller
         $payroll = new Payroll($payload);
         $payroll->deduction_rule_id = $rule->id;
         $payroll->save();
+        $this->applyPayrollPolicyItems($payroll, $employee);
 
         return redirect()
             ->route('payroll.index')
@@ -405,6 +408,7 @@ class PayrollController extends Controller
         $payload['deduction_rule_id'] = $rule->id;
         $payroll->fill($payload);
         $payroll->save();
+        $this->applyPayrollPolicyItems($payroll, $employee);
 
         return redirect()
             ->route('payroll.index')
@@ -450,6 +454,8 @@ class PayrollController extends Controller
             'allowance_transport' => $template->allowance_transport,
             'allowance_meal' => $template->allowance_meal,
             'allowance_health' => $template->allowance_health,
+            'allowance_thr' => $template->allowance_thr,
+            'allowance_other' => $template->allowance_other,
             'deduction_tax' => $template->deduction_tax,
             'deduction_bpjs' => $template->deduction_bpjs,
             'deduction_loan' => $template->deduction_loan,
@@ -483,6 +489,54 @@ class PayrollController extends Controller
         ]);
     }
 
+    protected function applyPayrollPolicyItems(Payroll $payroll, Employee $employee, ?Payroll $template = null): void
+    {
+        if (! $payroll->period_start || ! $payroll->period_end) {
+            return;
+        }
+
+        $template ??= $payroll;
+        $service = app(PayrollPolicyCalculationService::class);
+        $result = $service->calculate($employee, $payroll->period_start, $payroll->period_end, $template);
+
+        $service->syncItems($payroll, $result['items']);
+
+        if ($result['items'] === []) {
+            return;
+        }
+
+        $payroll->forceFill([
+            'allowance_transport' => (float) ($payroll->allowance_transport ?? 0) + $this->sumPolicyItems($result['items'], 'earning', 'transport_allowance'),
+            'allowance_meal' => (float) ($payroll->allowance_meal ?? 0) + $this->sumPolicyItems($result['items'], 'earning', 'meal_allowance'),
+            'allowance_health' => (float) ($payroll->allowance_health ?? 0) + $this->sumPolicyItems($result['items'], 'earning', 'health_allowance'),
+            'allowance_thr' => (float) ($payroll->allowance_thr ?? 0) + $this->sumPolicyItems($result['items'], 'earning', 'thr_allowance'),
+            'allowance_other' => (float) ($payroll->allowance_other ?? 0) + $this->sumPolicyItems($result['items'], 'earning', 'other_allowance'),
+            'deduction_attendance' => (float) ($payroll->deduction_attendance ?? 0) + (float) $result['totals']['deductions'],
+            'deduction_attendance_note' => $this->mergePolicyDeductionNotes((string) ($payroll->deduction_attendance_note ?? ''), $result['items']),
+        ])->save();
+    }
+
+    protected function sumPolicyItems(array $items, string $type, string $componentCode): float
+    {
+        return round(array_sum(array_map(
+            fn (array $item) => $item['component_type'] === $type && $item['component_code'] === $componentCode
+                ? (float) $item['amount']
+                : 0,
+            $items,
+        )), 2);
+    }
+
+    protected function mergePolicyDeductionNotes(string $existingNote, array $items): string
+    {
+        $policyNotes = collect($items)
+            ->filter(fn (array $item) => $item['component_type'] === 'deduction' && ! empty($item['note']))
+            ->map(fn (array $item) => $item['component_name'].': '.$item['note'].' Rp '.number_format((float) $item['amount'], 0, ',', '.'))
+            ->values()
+            ->all();
+
+        return trim(implode('; ', array_filter(array_merge([$existingNote], $policyNotes))));
+    }
+
     protected function validatedPayload(Request $request): array
     {
         $currentUser = $request->user() ?? auth()->user();
@@ -502,6 +556,8 @@ class PayrollController extends Controller
             'allowance_transport' => ['nullable', 'numeric', 'min:0'],
             'allowance_meal' => ['nullable', 'numeric', 'min:0'],
             'allowance_health' => ['nullable', 'numeric', 'min:0'],
+            'allowance_thr' => ['nullable', 'numeric', 'min:0'],
+            'allowance_other' => ['nullable', 'numeric', 'min:0'],
             'deduction_tax' => ['nullable', 'numeric', 'min:0'],
             'deduction_bpjs' => ['nullable', 'numeric', 'min:0'],
             'deduction_loan' => ['nullable', 'numeric', 'min:0'],
