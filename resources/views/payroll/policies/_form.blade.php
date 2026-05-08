@@ -3,6 +3,19 @@
     $selectedEmploymentType = old('employment_type', $policy->employment_type);
     $selectedStatus = old('status', $policy->status ?? 'active');
     $components = old('components', $componentDefaults);
+    $defaultComponentCodes = ['meal_allowance', 'transport_allowance', 'thr_allowance'];
+    $defaultComponents = [];
+    $customComponents = [];
+
+    foreach ($components as $component) {
+        $componentCode = $component['component_code'] ?? '';
+        if (in_array($componentCode, $defaultComponentCodes, true)) {
+            $defaultComponents[] = $component;
+        } else {
+            $customComponents[] = $component;
+        }
+    }
+
     $methodLabels = [
         'flat' => 'Flat',
         'daily_attendance' => 'Harian berbasis kehadiran',
@@ -128,7 +141,37 @@
 
     .policy-component-body {
         background: #fff;
+        position: relative;
         padding: .875rem;
+    }
+
+    .policy-remove-component {
+        line-height: 1;
+        position: absolute;
+        right: .875rem;
+        top: .875rem;
+        z-index: 1;
+    }
+
+    .policy-section-title {
+        align-items: center;
+        color: #344767;
+        display: flex;
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+        margin: 1rem 0 .5rem;
+        text-transform: uppercase;
+    }
+
+    .policy-empty-state {
+        background: #f8fafc;
+        border: 1px dashed #d8dee9;
+        border-radius: 10px;
+        color: #67748e;
+        font-size: .875rem;
+        padding: .875rem;
+        text-align: center;
     }
 
     .policy-chip {
@@ -139,20 +182,6 @@
         font-size: .7rem;
         font-weight: 700;
         padding: .35rem .65rem;
-    }
-
-    .policy-template {
-        border: 1px solid #d8dee9;
-        border-radius: 10px;
-        color: #344767;
-        min-height: 100%;
-        text-align: left;
-        white-space: normal;
-    }
-
-    .policy-template:hover {
-        border-color: #cb0c9f;
-        color: #cb0c9f;
     }
 
     .policy-review-item {
@@ -215,6 +244,7 @@
 
         .policy-component-summary {
             grid-template-columns: minmax(0, 1fr);
+            gap: .35rem;
         }
 
         .policy-actions {
@@ -350,38 +380,39 @@
                 <div class="policy-panel-header">
                     <div>
                         <h6 class="mb-1">Komponen Payroll</h6>
-                        <p class="text-sm text-secondary mb-0">Buka komponen yang ingin diatur. Detail disembunyikan agar form tetap ringkas.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm mb-0" data-add-component>
                         <i class="fas fa-plus me-1"></i> Tambah Komponen
                     </button>
                 </div>
 
-                <div class="row g-2 mb-3">
-                    <div class="col-md-4">
-                        <button type="button" class="btn policy-template w-100 mb-0" data-template="meal">
-                            <span class="d-block font-weight-bold">Uang Makan</span>
-                            <span class="d-block text-xs text-secondary">Dikali hari masuk, cuti bisa dipotong.</span>
-                        </button>
+                <div id="policy-components-accordion" data-components-list>
+                    <div class="policy-section-title">Komponen Default</div>
+                    <div data-default-components>
+                        @foreach($defaultComponents as $index => $component)
+                            @include('payroll.policies._component-row', [
+                                'index' => 'default-'.$index,
+                                'component' => $component,
+                                'methodLabels' => $methodLabels,
+                                'isDefault' => true,
+                                'isOpen' => $index === 0,
+                            ])
+                        @endforeach
                     </div>
-                    <div class="col-md-4">
-                        <button type="button" class="btn policy-template w-100 mb-0" data-template="transport">
-                            <span class="d-block font-weight-bold">Transport</span>
-                            <span class="d-block text-xs text-secondary">Nominal tetap setiap periode payroll.</span>
-                        </button>
-                    </div>
-                    <div class="col-md-4">
-                        <button type="button" class="btn policy-template w-100 mb-0" data-template="deduction">
-                            <span class="d-block font-weight-bold">Potongan Cuti</span>
-                            <span class="d-block text-xs text-secondary">Untuk potongan per hari unpaid leave.</span>
-                        </button>
-                    </div>
-                </div>
 
-                <div class="accordion" data-components-list>
-                    @foreach($components as $index => $component)
-                        @include('payroll.policies._component-row', ['index' => $index, 'component' => $component, 'methodLabels' => $methodLabels])
-                    @endforeach
+                    <div class="policy-section-title">Komponen Tambahan</div>
+                    <div data-custom-components>
+                        @foreach($customComponents as $index => $component)
+                            @include('payroll.policies._component-row', [
+                                'index' => 'custom-'.$index,
+                                'component' => $component,
+                                'methodLabels' => $methodLabels,
+                                'isDefault' => false,
+                                'isOpen' => $defaultComponents === [] && $index === 0,
+                            ])
+                        @endforeach
+                    </div>
+                    <div class="policy-empty-state {{ $customComponents === [] ? '' : 'd-none' }}" data-custom-empty>Belum ada komponen tambahan.</div>
                 </div>
             </div>
         </div>
@@ -474,12 +505,14 @@
         'leave_paid_behavior' => 'keep',
         'leave_unpaid_behavior' => 'deduct_daily',
         'sort_order' => 10,
-    ], 'methodLabels' => $methodLabels])
+    ], 'methodLabels' => $methodLabels, 'isDefault' => false, 'isOpen' => false])
 </template>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const list = document.querySelector('[data-components-list]');
+        const customList = document.querySelector('[data-custom-components]');
+        const customEmpty = document.querySelector('[data-custom-empty]');
         const template = document.querySelector('[data-component-template]');
         const tabButtons = Array.from(document.querySelectorAll('#policyBuilderTabs [data-bs-toggle="tab"]'));
         const prevButton = document.querySelector('[data-prev-tab]');
@@ -490,38 +523,6 @@
             earning: 'Tunjangan',
             deduction: 'Potongan',
             bonus: 'Bonus'
-        };
-        const presets = {
-            meal: {
-                component_code: 'meal_allowance',
-                component_name: 'Uang Makan',
-                component_type: 'earning',
-                amount: 0,
-                calculation_method: 'daily_attendance',
-                leave_paid_behavior: 'deduct_daily',
-                leave_unpaid_behavior: 'deduct_daily',
-                notes: 'Dihitung dari jumlah hari masuk.'
-            },
-            transport: {
-                component_code: 'transport_allowance',
-                component_name: 'Tunjangan Transport',
-                component_type: 'earning',
-                amount: 0,
-                calculation_method: 'flat',
-                leave_paid_behavior: 'keep',
-                leave_unpaid_behavior: 'keep',
-                notes: 'Nominal tetap setiap periode payroll.'
-            },
-            deduction: {
-                component_code: 'unpaid_leave',
-                component_name: 'Potongan Unpaid Leave',
-                component_type: 'deduction',
-                amount: 0,
-                calculation_method: 'deduct_per_leave_day',
-                leave_paid_behavior: 'keep',
-                leave_unpaid_behavior: 'deduct_daily',
-                notes: 'Potongan dihitung per hari unpaid leave.'
-            }
         };
 
         const activeTabIndex = function () {
@@ -549,10 +550,6 @@
             nextButton.classList.toggle('d-none', index === tabButtons.length - 1);
             submitButton.classList.toggle('d-none', index !== tabButtons.length - 1);
             updateReview();
-        };
-
-        const nextIndex = function () {
-            return list.querySelectorAll('[data-component-row]').length;
         };
 
         const moneyText = function (value) {
@@ -678,7 +675,7 @@
                 const methodInput = row.querySelector('[data-calculation-method]');
                 const methodHelper = row.querySelector('[data-method-helper]');
                 title.textContent = nameInput.value || 'Komponen baru';
-                if (codeInput) {
+                if (codeInput && row.dataset.componentKind !== 'default') {
                     codeInput.value = slugText(nameInput.value);
                 }
                 if (typeChip && typeInput) {
@@ -694,43 +691,35 @@
                     orderInput.value = (rowIndex + 1) * 10;
                 }
             });
+            customEmpty?.classList.toggle('d-none', customList.querySelectorAll('[data-component-row]').length > 0);
             updateReview();
         };
 
-        const applyPreset = function (row, preset) {
-            Object.keys(preset).forEach(function (key) {
-                const field = row.querySelector('[name$="[' + key + ']"]');
-                if (field) {
-                    field.value = preset[key];
-                }
-            });
-            const amountField = row.querySelector('[data-rupiah-input]');
-            if (amountField) {
-                amountField.value = moneyText(preset.amount || 0);
+        const openRow = function (row) {
+            const collapse = row.querySelector('.accordion-collapse');
+            if (collapse && window.bootstrap && window.bootstrap.Collapse) {
+                window.bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false }).show();
+            } else {
+                collapse?.classList.add('show');
             }
-            refreshTitles();
         };
 
-        const addRow = function (preset) {
+        const addRow = function () {
             const wrapper = document.createElement('div');
             wrapper.innerHTML = template.innerHTML.replaceAll('__INDEX__', String(Date.now()));
             const row = wrapper.firstElementChild;
-            list.appendChild(row);
-            if (preset) {
-                applyPreset(row, preset);
-            }
+            customList.appendChild(row);
+            refreshTitles();
+            openRow(row);
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function () {
+                row.querySelector('[data-component-name]')?.focus();
+            }, 250);
             return row;
         };
 
         document.querySelector('[data-add-component]')?.addEventListener('click', function () {
             addRow();
-        });
-
-        document.querySelectorAll('[data-template]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                addRow(presets[button.dataset.template]);
-            });
         });
 
         nextButton.addEventListener('click', function () {
@@ -768,22 +757,6 @@
         list.addEventListener('click', function (event) {
             const removeButton = event.target.closest('[data-remove-component]');
             if (!removeButton) {
-                return;
-            }
-            const rows = list.querySelectorAll('[data-component-row]');
-            if (rows.length === 1) {
-                const row = rows[0];
-                row.querySelectorAll('input[type="text"], input[type="number"]').forEach(function (input) {
-                    input.value = '';
-                });
-                row.querySelector('[data-rupiah-input]').value = 'Rp 0';
-                row.querySelector('[data-amount-value]').value = 0;
-                row.querySelector('[data-component-code]').value = '';
-                row.querySelector('[name$="[component_type]"]').value = 'earning';
-                row.querySelector('[name$="[calculation_method]"]').value = 'flat';
-                row.querySelector('[name$="[leave_paid_behavior]"]').value = 'keep';
-                row.querySelector('[name$="[leave_unpaid_behavior]"]').value = 'deduct_daily';
-                refreshTitles();
                 return;
             }
             removeButton.closest('[data-component-row]').remove();

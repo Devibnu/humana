@@ -233,26 +233,6 @@ class PayrollPolicyController extends Controller
                 'leave_unpaid_behavior' => 'keep',
                 'sort_order' => 30,
             ],
-            [
-                'component_code' => 'other_allowance',
-                'component_name' => 'Tunjangan Lainnya',
-                'component_type' => 'earning',
-                'amount' => 0,
-                'calculation_method' => 'flat',
-                'leave_paid_behavior' => 'keep',
-                'leave_unpaid_behavior' => 'keep',
-                'sort_order' => 40,
-            ],
-            [
-                'component_code' => 'incentive',
-                'component_name' => 'Insentif',
-                'component_type' => 'earning',
-                'amount' => 0,
-                'calculation_method' => 'flat',
-                'leave_paid_behavior' => 'keep',
-                'leave_unpaid_behavior' => 'keep',
-                'sort_order' => 50,
-            ],
         ];
     }
 
